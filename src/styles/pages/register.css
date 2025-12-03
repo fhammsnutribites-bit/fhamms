@@ -1,0 +1,181 @@
+/* Register Page - BEM Methodology */
+.register {
+  min-height: 100vh;
+  background: #f8f9fa;
+}
+
+.register__container {
+  max-width: 450px;
+  margin: 60px auto;
+  padding: 40px;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+.register__title {
+  font-size: 32px;
+  font-weight: bold;
+  color: #1b5e20;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.register__subtitle {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.register__form {
+  display: flex;
+  flex-direction: column;
+}
+
+.register__field {
+  margin-bottom: 20px;
+}
+
+.register__label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+}
+
+.register__input {
+  width: 100%;
+  padding: 14px;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  font-size: 16px;
+  transition: border-color 0.3s;
+  box-sizing: border-box;
+}
+
+.register__input:focus {
+  outline: none;
+  border-color: #4caf50;
+}
+
+.register__button {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.register__button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.register__button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.register__error {
+  padding: 12px;
+  background: #ffebee;
+  color: #c62828;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.register__links {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.register__link {
+  color: #4caf50;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  transition: color 0.3s;
+}
+
+.register__link:hover {
+  color: #45a049;
+  text-decoration: underline;
+}
+
+.register__divider {
+  text-align: center;
+  margin: 20px 0;
+  color: #999;
+  font-size: 14px;
+  position: relative;
+}
+
+.register__divider::before,
+.register__divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 40%;
+  height: 1px;
+  background: #e0e0e0;
+}
+
+.register__divider::before {
+  left: 0;
+}
+
+.register__divider::after {
+  right: 0;
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+  .register__container {
+    margin: 40px auto;
+    padding: 30px 25px;
+    max-width: 90%;
+  }
+
+  .register__title {
+    font-size: 28px;
+  }
+
+  .register__subtitle {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .register__container {
+    margin: 30px auto;
+    padding: 25px 20px;
+    border-radius: 16px;
+  }
+
+  .register__title {
+    font-size: 24px;
+  }
+
+  .register__input {
+    padding: 12px;
+    font-size: 15px;
+  }
+
+  .register__button {
+    padding: 14px;
+    font-size: 15px;
+  }
+}
+
