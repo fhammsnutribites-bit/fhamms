@@ -9,3 +9,4 @@
 .order-success__view-details{margin:14px 0 0 0;display:inline-block;color:#007bff;font-weight:700;font-size:15px;text-decoration:none;}
 .order-success__view-details:hover{color:#004ba0}
 @media(max-width:520px){.order-success__container{padding:14vw 2vw 10vw 2vw;} .order-success__title{font-size:20px;}.order-success__summary{font-size:15px}}
+
