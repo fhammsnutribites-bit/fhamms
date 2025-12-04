@@ -1,15 +1,10 @@
 // API Configuration for Vite
-// In production (Vercel), API routes are on the same domain
-// In development, use localhost or VITE_API_URL if set
+// When frontend and backend are deployed separately, use VITE_API_URL environment variable
+// In development, use localhost
 const getApiUrl = () => {
-  // If VITE_API_URL is explicitly set, use it
+  // If VITE_API_URL is explicitly set (required for separate deployments), use it
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
-  }
-  
-  // In production (Vercel), use relative URL for same-domain API
-  if (import.meta.env.PROD) {
-    return '';
   }
   
   // In development, use localhost
