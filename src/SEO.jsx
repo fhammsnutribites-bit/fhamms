@@ -36,7 +36,9 @@ export default function SEO({
       {/* Google Search Console */}
       <meta
         name="google-site-verification"
-        content="8nI_GhZVwW8DDUD3_dwGA6ZiiYJ6HdFSn2OVVwzwwkQ"
+        content="jS9g00pLkN60inZHbY68lrFepoV3ErEFLBPUhMOSuGw"
+
+
       />
 
       {/* Open Graph */}
