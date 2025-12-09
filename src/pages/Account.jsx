@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
-import axios from 'axios';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
-import { API_URL } from '../config/api.js';
+import { usersApi } from '../services/usersApi.js';
+import { addressApi } from '../services/addressApi.js';
 
 function Account() {
   const { user, logout } = useAuth();
@@ -31,6 +31,9 @@ function Account() {
   const [editingAddressIdx, setEditingAddressIdx] = useState(null);
   const [addressError, setAddressError] = useState('');
   const [addressSuccess, setAddressSuccess] = useState('');
+  const [pincodeError, setPincodeError] = useState('');
+  const [validatingPincode, setValidatingPincode] = useState(false);
+  const [isPincodeValid, setIsPincodeValid] = useState(false);
   
   // Payment form
   const [paymentForm, setPaymentForm] = useState({
@@ -47,24 +50,21 @@ function Account() {
     fetchUserData();
   }, [user]);
 
-  async function fetchUserData() {
+  const fetchUserData = useCallback(async () => {
     if (!user) {
       setLoading(false);
       return;
     }
     try {
-      const token = localStorage.getItem('token');
-      const { data } = await axios.get(`${API_URL}/api/users/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const data = await usersApi.getProfile();
       setUserData(data);
       setProfileForm({ name: data.name || '', email: data.email || '', password: '', confirmPassword: '' });
-      setLoading(false);
     } catch (err) {
       console.error('Failed to load user data:', err);
+    } finally {
       setLoading(false);
     }
-  }
+  }, [user]);
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
@@ -77,13 +77,10 @@ function Account() {
     }
     
     try {
-      const token = localStorage.getItem('token');
       const updateData = { name: profileForm.name, email: profileForm.email };
       if (profileForm.password) updateData.password = profileForm.password;
       
-      const { data } = await axios.put(`${API_URL}/api/users/me`, updateData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const data = await usersApi.updateProfile(updateData);
       setUserData(data);
       setProfileForm({ ...profileForm, password: '', confirmPassword: '' });
       setProfileSuccess('Profile updated successfully!');
@@ -98,22 +95,35 @@ function Account() {
     setAddressError('');
     setAddressSuccess('');
     
-    if (!addressForm.addressLine1 || !addressForm.city || !addressForm.zip) {
-      setAddressError('Please fill in required fields');
+    if (!addressForm.addressLine1 || !addressForm.city || !addressForm.state || !addressForm.zip) {
+      setAddressError('Please fill in all required fields (Address, City, State, and Pincode)');
+      return;
+    }
+    
+    // Validate pincode format
+    if (!addressApi.validatePincodeFormat(addressForm.zip)) {
+      setAddressError('Please enter a valid 6-digit Indian pincode');
+      return;
+    }
+    
+    // Check if pincode is validated and city/state are populated
+    if (!isPincodeValid || !addressForm.city || !addressForm.state) {
+      setAddressError('Please wait for pincode validation to complete. City and State must be auto-populated from a valid pincode.');
+      return;
+    }
+    
+    // Check if pincode validation is in progress
+    if (validatingPincode) {
+      setAddressError('Please wait for pincode validation to complete.');
       return;
     }
     
     try {
-      const token = localStorage.getItem('token');
       if (editingAddressIdx !== null) {
-        await axios.put(`${API_URL}/api/users/me/address/${editingAddressIdx}`, addressForm, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await usersApi.updateAddress(editingAddressIdx, addressForm);
         setAddressSuccess('Address updated successfully!');
       } else {
-        await axios.post(`${API_URL}/api/users/me/address`, addressForm, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await usersApi.addAddress(addressForm);
         setAddressSuccess('Address added successfully!');
       }
       await fetchUserData();
@@ -124,10 +134,11 @@ function Account() {
         city: '',
         state: '',
         zip: '',
-        country: '',
+        country: 'India',
         phone: '',
         isDefault: false
       });
+      setPincodeError('');
       setEditingAddressIdx(null);
       setTimeout(() => setAddressSuccess(''), 3000);
     } catch (err) {
@@ -140,15 +151,59 @@ function Account() {
     setAddressForm({ ...addr });
     setEditingAddressIdx(idx);
     setActiveTab('addresses');
+    setPincodeError('');
+    // If editing existing address with valid pincode, mark as valid
+    if (addr.zip && addr.zip.length === 6 && addr.city && addr.state) {
+      setIsPincodeValid(true);
+    } else {
+      setIsPincodeValid(false);
+    }
   };
+
+  const handlePincodeChange = useCallback(async (pincode) => {
+    // Validate format first
+    if (!addressApi.validatePincodeFormat(pincode)) {
+      setPincodeError('Invalid pincode format. Please enter a valid 6-digit Indian pincode.');
+      setAddressForm(prev => ({...prev, city: '', state: ''}));
+      setIsPincodeValid(false);
+      return;
+    }
+
+    setValidatingPincode(true);
+    setPincodeError('');
+    setIsPincodeValid(false);
+
+    try {
+      const result = await addressApi.getAddressByPincode(pincode);
+      
+      if (result.success) {
+        setAddressForm(prev => ({
+          ...prev,
+          city: result.city || '',
+          state: result.state || '',
+          country: result.country || 'India'
+        }));
+        setPincodeError('');
+        setIsPincodeValid(true);
+      } else {
+        setPincodeError(result.message || 'Invalid pincode. Please enter a valid Indian pincode.');
+        setAddressForm(prev => ({...prev, city: '', state: ''}));
+        setIsPincodeValid(false);
+      }
+    } catch (err) {
+      console.error('Pincode validation error:', err);
+      setPincodeError('Failed to validate pincode. Please try again.');
+      setAddressForm(prev => ({...prev, city: '', state: ''}));
+      setIsPincodeValid(false);
+    } finally {
+      setValidatingPincode(false);
+    }
+  }, []);
 
   const handleDeleteAddress = async (idx) => {
     if (!confirm('Delete this address?')) return;
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`${API_URL}/api/users/me/address/${idx}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await usersApi.deleteAddress(idx);
       await fetchUserData();
     } catch (err) {
       alert('Failed to delete address');
@@ -166,16 +221,11 @@ function Account() {
     }
     
     try {
-      const token = localStorage.getItem('token');
       if (editingPaymentIdx !== null) {
-        await axios.put(`${API_URL}/api/users/me/payment/${editingPaymentIdx}`, paymentForm, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await usersApi.updatePaymentMethod(editingPaymentIdx, paymentForm);
         setPaymentSuccess('Payment method updated successfully!');
       } else {
-        await axios.post(`${API_URL}/api/users/me/payment`, paymentForm, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await usersApi.addPaymentMethod(paymentForm);
         setPaymentSuccess('Payment method added successfully!');
       }
       await fetchUserData();
@@ -197,10 +247,7 @@ function Account() {
   const handleDeletePayment = async (idx) => {
     if (!confirm('Delete this payment method?')) return;
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`${API_URL}/api/users/me/payment/${idx}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await usersApi.deletePaymentMethod(idx);
       await fetchUserData();
     } catch (err) {
       alert('Failed to delete payment method');
@@ -520,7 +567,64 @@ function Account() {
                     }}
                   />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#333' }}>
+                    Pincode *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength="6"
+                    value={addressForm.zip}
+                    onChange={e => {
+                      const value = e.target.value.replace(/\D/g, ''); // Only numbers
+                      setAddressForm({...addressForm, zip: value});
+                      setPincodeError('');
+                      setIsPincodeValid(false);
+                      
+                      // Validate and fetch city/state when 6 digits entered
+                      if (value.length === 6) {
+                        handlePincodeChange(value);
+                      } else if (value.length < 6) {
+                        // Clear city/state if pincode is incomplete
+                        setAddressForm(prev => ({...prev, city: '', state: ''}));
+                        setIsPincodeValid(false);
+                      }
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: pincodeError ? '2px solid #dc3545' : '2px solid #e0e0e0',
+                      borderRadius: '8px',
+                      fontSize: '16px'
+                    }}
+                    placeholder="Enter 6-digit pincode"
+                  />
+                  {validatingPincode && (
+                    <small style={{ display: 'block', color: '#007bff', fontSize: '12px', marginTop: '5px' }}>
+                      Validating pincode...
+                    </small>
+                  )}
+                  {pincodeError && (
+                    <div style={{
+                      display: 'block',
+                      color: '#dc3545',
+                      fontSize: '12px',
+                      marginTop: '5px',
+                      padding: '5px',
+                      background: '#f8d7da',
+                      borderRadius: '4px'
+                    }}>
+                      {pincodeError}
+                    </div>
+                  )}
+                  {addressForm.zip.length === 6 && !pincodeError && !validatingPincode && addressForm.city && (
+                    <small style={{ display: 'block', color: '#28a745', fontSize: '12px', marginTop: '5px', fontWeight: '500' }}>
+                      ✓ City and State auto-filled
+                    </small>
+                  )}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
                   <div>
                     <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#333' }}>
                       City *
@@ -530,49 +634,48 @@ function Account() {
                       value={addressForm.city}
                       onChange={e => setAddressForm({ ...addressForm, city: e.target.value })}
                       required
+                      readOnly={addressForm.zip.length === 6 && addressForm.city ? true : false}
                       style={{
                         width: '100%',
                         padding: '12px',
                         border: '2px solid #e0e0e0',
                         borderRadius: '8px',
-                        fontSize: '16px'
+                        fontSize: '16px',
+                        backgroundColor: addressForm.zip.length === 6 && addressForm.city ? '#f0f0f0' : 'white',
+                        cursor: addressForm.zip.length === 6 && addressForm.city ? 'not-allowed' : 'text'
                       }}
                     />
+                    {addressForm.zip.length === 6 && addressForm.city && (
+                      <small style={{ display: 'block', color: '#666', fontSize: '11px', marginTop: '5px', fontStyle: 'italic' }}>
+                        Auto-filled from pincode
+                      </small>
+                    )}
                   </div>
                   <div>
                     <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#333' }}>
-                      State
+                      State *
                     </label>
                     <input
                       type="text"
                       value={addressForm.state}
                       onChange={e => setAddressForm({ ...addressForm, state: e.target.value })}
-                      style={{
-                        width: '100%',
-                        padding: '12px',
-                        border: '2px solid #e0e0e0',
-                        borderRadius: '8px',
-                        fontSize: '16px'
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#333' }}>
-                      ZIP Code *
-                    </label>
-                    <input
-                      type="text"
-                      value={addressForm.zip}
-                      onChange={e => setAddressForm({ ...addressForm, zip: e.target.value })}
                       required
+                      readOnly={addressForm.zip.length === 6 && addressForm.state ? true : false}
                       style={{
                         width: '100%',
                         padding: '12px',
                         border: '2px solid #e0e0e0',
                         borderRadius: '8px',
-                        fontSize: '16px'
+                        fontSize: '16px',
+                        backgroundColor: addressForm.zip.length === 6 && addressForm.state ? '#f0f0f0' : 'white',
+                        cursor: addressForm.zip.length === 6 && addressForm.state ? 'not-allowed' : 'text'
                       }}
                     />
+                    {addressForm.zip.length === 6 && addressForm.state && (
+                      <small style={{ display: 'block', color: '#666', fontSize: '11px', marginTop: '5px', fontStyle: 'italic' }}>
+                        Auto-filled from pincode
+                      </small>
+                    )}
                   </div>
                 </div>
                 <div style={{ marginBottom: '20px' }}>
@@ -606,25 +709,32 @@ function Account() {
                 <div style={{ display: 'flex', gap: '15px' }}>
                   <button
                     type="submit"
+                    disabled={!isPincodeValid || validatingPincode || !addressForm.city || !addressForm.state || addressForm.zip.length !== 6}
                     style={{
                       padding: '14px 32px',
-                      background: '#4caf50',
+                      background: (!isPincodeValid || validatingPincode || !addressForm.city || !addressForm.state || addressForm.zip.length !== 6) ? '#ccc' : '#4caf50',
                       color: 'white',
                       border: 'none',
                       borderRadius: '50px',
                       fontWeight: '600',
                       fontSize: '16px',
-                      cursor: 'pointer',
-                      transition: 'all 0.3s'
+                      cursor: (!isPincodeValid || validatingPincode || !addressForm.city || !addressForm.state || addressForm.zip.length !== 6) ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.3s',
+                      opacity: (!isPincodeValid || validatingPincode || !addressForm.city || !addressForm.state || addressForm.zip.length !== 6) ? 0.6 : 1
                     }}
                     onMouseEnter={(e) => {
-                      e.target.style.background = '#45a049';
-                      e.target.style.transform = 'translateY(-2px)';
+                      if (!e.target.disabled) {
+                        e.target.style.background = '#45a049';
+                        e.target.style.transform = 'translateY(-2px)';
+                      }
                     }}
                     onMouseLeave={(e) => {
-                      e.target.style.background = '#4caf50';
-                      e.target.style.transform = 'translateY(0)';
+                      if (!e.target.disabled) {
+                        e.target.style.background = '#4caf50';
+                        e.target.style.transform = 'translateY(0)';
+                      }
                     }}
+                    title={(!isPincodeValid || validatingPincode || !addressForm.city || !addressForm.state || addressForm.zip.length !== 6) ? 'Please complete pincode validation and ensure city/state are populated' : ''}
                   >
                     {editingAddressIdx !== null ? 'Update Address' : 'Add Address'}
                   </button>
@@ -640,10 +750,11 @@ function Account() {
                           city: '',
                           state: '',
                           zip: '',
-                          country: '',
+                          country: 'India',
                           phone: '',
                           isDefault: false
                         });
+                        setPincodeError('');
                       }}
                       style={{
                         padding: '14px 32px',

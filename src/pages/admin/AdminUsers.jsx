@@ -1,50 +1,47 @@
-import { useEffect, useState } from 'react';
-import axios from 'axios';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import Navbar from '../../components/Navbar.jsx';
-import { API_URL } from '../../config/api.js';
+import { usersApi } from '../../services/usersApi.js';
 
 function AdminUsers() {
   const { user } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  async function fetchUsers() {
-    if (!user?.isAdmin) return;
+  const fetchUsers = useCallback(async () => {
+    if (!user?.isAdmin) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const { data } = await axios.get(
-        `${API_URL}/api/users`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const data = await usersApi.getAll();
       setUsers(data);
     } catch (err) {
-      console.error('Failed to load users');
+      console.error('Failed to load users:', err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }
+  }, [user]);
 
-  const handleDelete = async userId => {
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
+  const handleDelete = useCallback(async (userId) => {
     if (userId === user.id) {
       alert('Cannot delete your own account');
       return;
     }
     if (!confirm('Delete this user?')) return;
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete(
-        `${API_URL}/api/users/${userId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await usersApi.delete(userId);
       fetchUsers();
     } catch (err) {
       alert('Failed to delete user');
+      console.error('Delete user error:', err);
     }
-  };
+  }, [user, fetchUsers]);
 
   if (!user?.isAdmin) {
     return (

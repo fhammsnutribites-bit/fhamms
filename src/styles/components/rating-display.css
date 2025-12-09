@@ -1,0 +1,59 @@
+/* Rating Display Component - BEM Methodology */
+.rating-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rating-display__stars {
+  display: flex;
+  gap: 2px;
+}
+
+.rating-display__star {
+  /* color: #ffc107; */
+  font-size: inherit;
+}
+
+.rating-display__star--filled {
+  color: #ffc107;
+}
+
+.rating-display--small .rating-display__star {
+  font-size: 12px;
+}
+
+.rating-display--medium .rating-display__star {
+  font-size: 14px;
+}
+
+.rating-display--large .rating-display__star {
+  font-size: 16px;
+}
+
+.rating-display__count {
+  font-size: 12px;
+  color: #666;
+}
+
+.rating-display--small .rating-display__count {
+  font-size: 11px;
+}
+
+.rating-display--medium .rating-display__count {
+  font-size: 12px;
+}
+
+.rating-display--large .rating-display__count {
+  font-size: 14px;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .rating-display {
+    gap: 6px;
+  }
+}
+
+
+

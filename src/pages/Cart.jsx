@@ -2,18 +2,48 @@ import { useCart } from '../context/CartContext.jsx';
 import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
+import PriceDisplay from '../components/PriceDisplay.jsx';
 import '../styles/pages/cart.css';
 
 function Cart() {
-  const { cartItems, updateQuantity, removeFromCart, clearCart } = useCart();
+  const {
+    cartItems,
+    updateQuantity,
+    removeFromCart,
+    clearCart,
+    subtotal,
+    deliveryCharge,
+    loadingDeliveryCharge,
+    total,
+    error,
+    loading
+  } = useCart();
   const navigate = useNavigate();
-  const total = cartItems.reduce((sum, i) => sum + i.price * i.qty, 0);
 
   return (
     <div className="cart">
       <Navbar />
       <div className="cart__container">
+        <button
+          onClick={() => navigate('/products')}
+          className="cart__back-button"
+        >
+          ← Back to Shopping
+        </button>
         <h1 className="cart__title">🛒 Your Shopping Cart</h1>
+
+        {error && (
+          <div className="cart__error">
+            <div className="cart__error-icon">⚠️</div>
+            <p className="cart__error-message">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="cart__error-retry"
+            >
+              Retry
+            </button>
+          </div>
+        )}
         {cartItems.length === 0 ? (
           <div className="cart__empty">
             <div className="cart__empty-icon">🛒</div>
@@ -47,43 +77,46 @@ function Cart() {
                         Weight: {item.selectedWeight}g
                       </div>
                     )}
-                    <div className="cart__item-price">₹{item.price?.toFixed(2) || '0.00'}</div>
+                    <div className="cart__item-price">
+                      <PriceDisplay
+                        originalPrice={item.originalPrice || item.price}
+                        discountedPrice={item.originalPrice && item.originalPrice !== item.price ? item.price : null}
+                        discountInfo={item.originalPrice && item.originalPrice !== item.price ? { type: 'fixed', value: item.originalPrice - item.price } : null}
+                        hasDiscount={item.originalPrice && item.originalPrice !== item.price}
+                        size="small"
+                        showBadge={false}
+                      />
+                    </div>
                     <div className="cart__item-controls">
                       <div className="cart__item-quantity">
                         <button
                           onClick={() => {
-                            const updatePayload = item.selectedWeight 
-                              ? { _id: item._id, selectedWeight: item.selectedWeight, qty: Math.max(1, item.qty - 1) }
-                              : { _id: item._id, qty: Math.max(1, item.qty - 1) };
-                            updateQuantity(updatePayload._id, updatePayload.qty, updatePayload.selectedWeight);
+                            updateQuantity(item.cartItemId, Math.max(1, item.qty - 1), item.selectedWeight);
                           }}
                           className="cart__item-quantity-button"
+                          disabled={loading}
                         >
                           −
                         </button>
                         <span className="cart__item-quantity-value">{item.qty}</span>
                         <button
                           onClick={() => {
-                            const updatePayload = item.selectedWeight 
-                              ? { _id: item._id, selectedWeight: item.selectedWeight, qty: item.qty + 1 }
-                              : { _id: item._id, qty: item.qty + 1 };
-                            updateQuantity(updatePayload._id, updatePayload.qty, updatePayload.selectedWeight);
+                            updateQuantity(item.cartItemId, item.qty + 1, item.selectedWeight);
                           }}
                           className="cart__item-quantity-button"
+                          disabled={loading}
                         >
                           +
                         </button>
                       </div>
                       <button
                         onClick={() => {
-                          const removePayload = item.selectedWeight 
-                            ? { _id: item._id, selectedWeight: item.selectedWeight }
-                            : item._id;
-                          removeFromCart(removePayload);
+                          removeFromCart(item.cartItemId);
                         }}
                         className="cart__item-remove"
+                        disabled={loading}
                       >
-                        Remove
+                        {loading ? 'Removing...' : 'Remove'}
                       </button>
                     </div>
                   </div>
@@ -98,11 +131,16 @@ function Cart() {
               <h2 className="cart__summary-title">Order Summary</h2>
               <div className="cart__summary-row">
                 <span>Subtotal</span>
-                <span>₹{total.toFixed(2)}</span>
+                <span>₹{subtotal.toFixed(2)}</span>
               </div>
               <div className="cart__summary-row">
-                <span>Shipping</span>
-                <span>Free</span>
+                <span>
+                  Delivery Charge
+                  {loadingDeliveryCharge && <small className="cart__loading-text"> (calculating...)</small>}
+                </span>
+                <span>
+                  {loadingDeliveryCharge ? '...' : `₹${deliveryCharge.toFixed(2)}`}
+                </span>
               </div>
               <div className="cart__summary-row cart__summary-row--total">
                 <span>Total</span>

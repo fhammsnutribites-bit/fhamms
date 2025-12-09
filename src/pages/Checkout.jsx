@@ -1,12 +1,21 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useCart } from '../context/CartContext.jsx';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
-import { API_URL } from '../config/api.js';
+import { promoCodeApi } from '../services/promoCodeApi.js';
+import { ordersApi } from '../services/ordersApi.js';
+import { deliveryChargeApi } from '../services/deliveryChargeApi.js';
+import { addressApi } from '../services/addressApi.js';
 import '../styles/pages/checkout.css';
+
+const REQUIRED_FIELDS = {
+  address: 'Address',
+  city: 'City',
+  postalCode: 'Postal Code',
+  country: 'Country',
+};
 
 function Checkout() {
   const { user } = useAuth();
@@ -17,119 +26,292 @@ function Checkout() {
   const [formData, setFormData] = useState({
     address: '',
     city: '',
+    state: '',
     postalCode: '',
-    country: ''
+    country: 'India'
   });
+  const [pincodeError, setPincodeError] = useState('');
+  const [validatingPincode, setValidatingPincode] = useState(false);
+  const [isPincodeValid, setIsPincodeValid] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('PhonePe');
   const [phonePeShow, setPhonePeShow] = useState(false);
   const [paymentFailed, setPaymentFailed] = useState(false);
   const [failedMessage, setFailedMessage] = useState('');
+  const [promoCode, setPromoCode] = useState('');
+  const [promoCodeError, setPromoCodeError] = useState('');
+  const [promoCodeSuccess, setPromoCodeSuccess] = useState('');
+  const [discount, setDiscount] = useState(0);
+  const [appliedPromoCode, setAppliedPromoCode] = useState(null);
+  const [validatingPromo, setValidatingPromo] = useState(false);
+  const [deliveryCharge, setDeliveryCharge] = useState(0);
+  const [loadingDeliveryCharge, setLoadingDeliveryCharge] = useState(false);
 
-  const total = cartItems.reduce((sum, i) => sum + i.price * i.qty, 0);
+  const subtotal = useMemo(() => 
+    cartItems.reduce((sum, item) => sum + item.price * item.qty, 0),
+    [cartItems]
+  );
+  
+  const orderAmount = useMemo(() => subtotal - discount, [subtotal, discount]);
+  
+  const total = useMemo(() => orderAmount + deliveryCharge, [orderAmount, deliveryCharge]);
 
-  const REQUIRED = {
-    address: 'Address',
-    city: 'City',
-    postalCode: 'Postal Code',
-    country: 'Country',
-  };
+  // Calculate delivery charge when order amount changes
+  useEffect(() => {
+    const calculateDeliveryCharge = async () => {
+      if (orderAmount <= 0) {
+        setDeliveryCharge(0);
+        return;
+      }
+      
+      setLoadingDeliveryCharge(true);
+      try {
+        const data = await deliveryChargeApi.calculate(orderAmount);
+        setDeliveryCharge(data.deliveryCharge || 0);
+      } catch (err) {
+        console.error('Failed to calculate delivery charge:', err);
+        // Default to 0 if calculation fails
+        setDeliveryCharge(0);
+      } finally {
+        setLoadingDeliveryCharge(false);
+      }
+    };
 
-  const redirectToSuccess = (order) => {
+    calculateDeliveryCharge();
+  }, [orderAmount]);
+  
+  // Check if any cart item has product discount
+  // Disable promo codes if ANY item in cart is discounted
+  const hasProductDiscount = useMemo(() =>
+    cartItems.some(item => item.originalPrice && item.originalPrice > item.price),
+    [cartItems]
+  );
+
+  const redirectToSuccess = useCallback((order) => {
     clearCart();
     navigate('/order-success', { state: { order } });
-  };
+  }, [clearCart, navigate]);
 
-  const handleSubmit = async e => {
+  const validatePromoCode = useCallback(async () => {
+    if (!promoCode.trim()) {
+      setPromoCodeError('Please enter a promo code');
+      return;
+    }
+
+    // Check if any cart item has product discount
+    if (hasProductDiscount) {
+      setPromoCodeError('Promo codes cannot be applied when products already have discounts. Please remove discounted items from cart to use promo code.');
+      setDiscount(0);
+      setAppliedPromoCode(null);
+      setPromoCodeSuccess('');
+      return;
+    }
+
+    setValidatingPromo(true);
+    setPromoCodeError('');
+    setPromoCodeSuccess('');
+
+    try {
+      const data = await promoCodeApi.validate({
+        code: promoCode.trim(),
+        orderAmount: subtotal,
+        userId: user?.id,
+        cartItems: cartItems.map(item => ({
+          price: item.price,
+          originalPrice: item.originalPrice
+        }))
+      });
+
+      if (data.valid) {
+        setDiscount(data.discount);
+        setAppliedPromoCode(data.code);
+        setPromoCodeSuccess(data.message);
+        setPromoCodeError('');
+      } else {
+        setPromoCodeError(data.message || 'Invalid promo code');
+        setDiscount(0);
+        setAppliedPromoCode(null);
+        setPromoCodeSuccess('');
+      }
+    } catch (err) {
+      setPromoCodeError(err.response?.data?.message || 'Failed to validate promo code');
+      setDiscount(0);
+      setAppliedPromoCode(null);
+      setPromoCodeSuccess('');
+    } finally {
+      setValidatingPromo(false);
+    }
+  }, [promoCode, hasProductDiscount, subtotal, user?.id, cartItems]);
+
+  const removePromoCode = useCallback(() => {
+    setPromoCode('');
+    setDiscount(0);
+    setAppliedPromoCode(null);
+    setPromoCodeError('');
+    setPromoCodeSuccess('');
+  }, []);
+
+  const handlePincodeChange = useCallback(async (pincode) => {
+    // Validate format first
+    if (!addressApi.validatePincodeFormat(pincode)) {
+      setPincodeError('Invalid pincode format. Please enter a valid 6-digit Indian pincode.');
+      setFormData(prev => ({...prev, city: '', state: ''}));
+      setIsPincodeValid(false);
+      return;
+    }
+
+    setValidatingPincode(true);
+    setPincodeError('');
+    setIsPincodeValid(false);
+
+    try {
+      const result = await addressApi.getAddressByPincode(pincode);
+      
+      if (result.success) {
+        setFormData(prev => ({
+          ...prev,
+          city: result.city || '',
+          state: result.state || '',
+          country: result.country || 'India'
+        }));
+        setPincodeError('');
+        setIsPincodeValid(true);
+      } else {
+        setPincodeError(result.message || 'Invalid pincode. Please enter a valid Indian pincode.');
+        setFormData(prev => ({...prev, city: '', state: ''}));
+        setIsPincodeValid(false);
+      }
+    } catch (err) {
+      console.error('Pincode validation error:', err);
+      setPincodeError('Failed to validate pincode. Please try again.');
+      setFormData(prev => ({...prev, city: '', state: ''}));
+      setIsPincodeValid(false);
+    } finally {
+      setValidatingPincode(false);
+    }
+  }, []);
+
+  const validateForm = useCallback(() => {
+    // Check all required fields
+    for (const field in REQUIRED_FIELDS) {
+      if (!formData[field] || !formData[field].trim()) {
+        return false;
+      }
+    }
+    
+    // Check if state field is filled (required for pincode validation)
+    if (!formData.state || !formData.state.trim()) {
+      return false;
+    }
+    
+    // Check if pincode is valid and city/state are populated
+    if (!isPincodeValid || !formData.city || !formData.state) {
+      return false;
+    }
+    
+    // Validate pincode format
+    if (formData.postalCode.length !== 6 || !addressApi.validatePincodeFormat(formData.postalCode)) {
+      return false;
+    }
+    
+    return true;
+  }, [formData, isPincodeValid]);
+
+  const createOrderData = useCallback(() => ({
+    orderItems: cartItems.map(item => ({
+      product: item._id,
+      qty: item.qty,
+      price: item.price,
+      originalPrice: item.originalPrice || item.price,
+      selectedWeight: item.selectedWeight
+    })),
+    shippingAddress: formData,
+    subtotal: subtotal,
+    discount: discount,
+    deliveryCharge: deliveryCharge,
+    totalPrice: total,
+    paymentMethod,
+    promoCode: appliedPromoCode || undefined
+  }), [cartItems, formData, subtotal, discount, deliveryCharge, total, paymentMethod, appliedPromoCode]);
+
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     setError(null);
     setPaymentFailed(false);
-    // Validate required fields
-    for (let field in REQUIRED) {
-      if (!formData[field] || !formData[field].trim()) {
-        return;
-      }
+    
+    if (!validateForm()) {
+      return;
     }
+    
     if (!user) {
       setError('Please login to checkout');
       return;
     }
+    
     setLoading(true);
     try {
       if (paymentMethod === 'PhonePe') {
         setPhonePeShow(true);
         setLoading(false);
         return;
-      } else {
-        const token = localStorage.getItem('token');
-        const orderData = {
-          orderItems: cartItems.map(item => ({
-            product: item._id,
-            qty: item.qty,
-            price: item.price,
-            selectedWeight: item.selectedWeight
-          })),
-          shippingAddress: formData,
-          totalPrice: total,
-          paymentMethod
-        };
-        const { data } = await axios.post(
-          `${API_URL}/api/orders`,
-          orderData,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        redirectToSuccess(data);
       }
+      
+      const orderData = createOrderData();
+      const data = await ordersApi.create(orderData);
+      redirectToSuccess(data);
     } catch (err) {
       setPaymentFailed(true);
       setFailedMessage(err.response?.data?.message || 'Order placement/payment failed. Please try again.');
-     
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  };
+  }, [validateForm, user, paymentMethod, createOrderData, redirectToSuccess]);
 
   // Simulated PhonePe Gateway completion
-  const handlePhonePePaid = async () => {
+  const handlePhonePePaid = useCallback(async () => {
     setLoading(true);
     setPaymentFailed(false);
     setFailedMessage('');
-    // Validate again in the modal
-    for (let field in REQUIRED) {
-      if (!formData[field] || !formData[field].trim()) {
     
-        setLoading(false);
-        return;
-      }
+    // Validate again in the modal
+    if (!validateForm()) {
+      setLoading(false);
+      return;
     }
+    
     try {
-      const token = localStorage.getItem('token');
-      const orderData = {
-        orderItems: cartItems.map(item => ({
-          product: item._id,
-          qty: item.qty,
-          price: item.price,
-          selectedWeight: item.selectedWeight
-        })),
-        shippingAddress: formData,
-        totalPrice: total,
-        paymentMethod
-      };
-      const { data } = await axios.post(
-        `${API_URL}/api/orders`,
-        orderData,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const orderData = createOrderData();
+      const data = await ordersApi.create(orderData);
       setPhonePeShow(false);
-  
       redirectToSuccess(data);
     } catch (err) {
       setPaymentFailed(true);
       setPhonePeShow(false);
       setFailedMessage(err.response?.data?.message || 'PhonePe payment failed. Please try again.');
-     
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  };
+  }, [validateForm, createOrderData, redirectToSuccess]);
+
+  // Redirect to login if not authenticated (double check even though PrivateRoute handles it)
+  if (!user) {
+    return (
+      <div className="checkout">
+        <Navbar />
+        <div className="checkout__container">
+          <div className="checkout__empty">
+            <p className="checkout__empty-text">Please login to proceed with checkout</p>
+            <button 
+              onClick={() => navigate('/login')} 
+              className="checkout__empty-button"
+            >
+              Go to Login
+            </button>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   if (cartItems.length === 0) {
     return (
@@ -155,13 +337,19 @@ function Checkout() {
     <div className="checkout">
       <Navbar />
       <div className="checkout__container">
+        <button
+          onClick={() => navigate('/cart')}
+          className="checkout__back-button"
+        >
+          ← Back to Cart
+        </button>
         <h2 className="checkout__title">Checkout</h2>
         <div className="checkout__content">
           <div className="checkout__section">
             <h3 className="checkout__section-title">Shipping Address</h3>
             <form onSubmit={handleSubmit} className="checkout__form">
               <div className="checkout__field">
-                <label className="checkout__label">Address <span style={{color:'red'}}>*</span></label>
+                <label className="checkout__label">Address <span className="checkout__label-required">*</span></label>
                 <input
                   type="text"
                   required
@@ -171,38 +359,145 @@ function Checkout() {
                 />
               </div>
               <div className="checkout__field">
-                <label className="checkout__label">City <span style={{color:'red'}}>*</span></label>
+                <label className="checkout__label">Pincode <span className="checkout__label-required">*</span></label>
+                <input
+                  type="text"
+                  required
+                  maxLength="6"
+                  value={formData.postalCode}
+                  onChange={e => {
+                    const value = e.target.value.replace(/\D/g, ''); // Only numbers
+                    setFormData({...formData, postalCode: value});
+                    setPincodeError('');
+                    setIsPincodeValid(false);
+                    
+                    // Validate and fetch city/state when 6 digits entered
+                    if (value.length === 6) {
+                      handlePincodeChange(value);
+                    } else if (value.length < 6) {
+                      // Clear city/state if pincode is incomplete
+                      setFormData(prev => ({...prev, city: '', state: ''}));
+                      setIsPincodeValid(false);
+                    }
+                  }}
+                  className={`checkout__input ${pincodeError ? 'checkout__input--error' : ''}`}
+                  placeholder="Enter 6-digit pincode"
+                />
+                {validatingPincode && (
+                  <small className="checkout__pincode-loading">Validating pincode...</small>
+                )}
+                {pincodeError && (
+                  <div className="checkout__pincode-error">{pincodeError}</div>
+                )}
+                {formData.postalCode.length === 6 && !pincodeError && !validatingPincode && formData.city && (
+                  <small className="checkout__pincode-success">✓ City and State auto-filled</small>
+                )}
+              </div>
+              <div className="checkout__field">
+                <label className="checkout__label">City <span className="checkout__label-required">*</span></label>
                 <input
                   type="text"
                   required
                   value={formData.city}
                   onChange={e => setFormData({...formData, city: e.target.value})}
                   className="checkout__input"
+                  readOnly={formData.postalCode.length === 6 && formData.city ? true : false}
+                  style={formData.postalCode.length === 6 && formData.city ? { backgroundColor: '#f0f0f0', cursor: 'not-allowed' } : {}}
                 />
+                {formData.postalCode.length === 6 && formData.city && (
+                  <small className="checkout__pincode-info">Auto-filled from pincode (you can edit if needed)</small>
+                )}
               </div>
               <div className="checkout__field">
-                <label className="checkout__label">Postal Code <span style={{color:'red'}}>*</span></label>
+                <label className="checkout__label">State <span className="checkout__label-required">*</span></label>
                 <input
                   type="text"
                   required
-                  value={formData.postalCode}
-                  onChange={e => setFormData({...formData, postalCode: e.target.value})}
+                  value={formData.state}
+                  onChange={e => setFormData({...formData, state: e.target.value})}
                   className="checkout__input"
+                  readOnly={formData.postalCode.length === 6 && formData.state ? true : false}
+                  style={formData.postalCode.length === 6 && formData.state ? { backgroundColor: '#f0f0f0', cursor: 'not-allowed' } : {}}
                 />
+                {formData.postalCode.length === 6 && formData.state && (
+                  <small className="checkout__pincode-info">Auto-filled from pincode (you can edit if needed)</small>
+                )}
               </div>
               <div className="checkout__field">
-                <label className="checkout__label">Country <span style={{color:'red'}}>*</span></label>
+                <label className="checkout__label">Country <span className="checkout__label-required">*</span></label>
                 <input
                   type="text"
                   required
                   value={formData.country}
-                  onChange={e => setFormData({...formData, country: e.target.value})}
+                  readOnly
                   className="checkout__input"
+                  style={{ backgroundColor: '#f0f0f0', cursor: 'not-allowed' }}
                 />
               </div>
 
               <div className="checkout__field">
-                <label className="checkout__label">Payment Method <span style={{color:'red'}}>*</span></label>
+                <label className="checkout__label">Promo Code</label>
+                {hasProductDiscount && !appliedPromoCode ? (
+                  <div className="checkout__promo-warning">
+                    ⚠️ Promo codes cannot be applied when products already have discounts. Please remove discounted items from cart to use promo code.
+                  </div>
+                ) : (
+                  <div className="checkout__promo-input-group">
+                    <input
+                      type="text"
+                      value={promoCode}
+                      onChange={e => {
+                        setPromoCode(e.target.value.toUpperCase());
+                        setPromoCodeError('');
+                        setPromoCodeSuccess('');
+                      }}
+                      placeholder="Enter promo code"
+                      className="checkout__input checkout__promo-input"
+                      disabled={!!appliedPromoCode || hasProductDiscount}
+                    />
+                    {!appliedPromoCode ? (
+                      <button
+                        type="button"
+                        onClick={validatePromoCode}
+                        disabled={validatingPromo || !promoCode.trim() || hasProductDiscount}
+                        className="checkout__button"
+                        style={{ 
+                          padding: '10px 20px',
+                          whiteSpace: 'nowrap',
+                          minWidth: '100px'
+                        }}
+                      >
+                        {validatingPromo ? 'Validating...' : 'Apply'}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={removePromoCode}
+                        className="checkout__empty-button"
+                        style={{ 
+                          padding: '10px 20px',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                )}
+                {promoCodeError && (
+                  <div className="checkout__promo-error">
+                    {promoCodeError}
+                  </div>
+                )}
+                {promoCodeSuccess && (
+                  <div className="checkout__promo-success">
+                    ✓ {promoCodeSuccess}
+                  </div>
+                )}
+              </div>
+
+              <div className="checkout__field">
+                <label className="checkout__label">Payment Method <span className="checkout__label-required">*</span></label>
                 <div className="checkout__payment-methods">
                   <label className="checkout__radio">
                     <input
@@ -216,16 +511,30 @@ function Checkout() {
                     PhonePe Gateway (UPI)
                     <img
                       src="https://cdn.worldvectorlogo.com/logos/phonepe-1.svg"
-                      alt="PhonePe Logo" width="38" style={{marginLeft:'8px',verticalAlign:'middle'}} />
+                      alt="PhonePe Logo" 
+                      width="38" 
+                      className="checkout__payment-logo" 
+                    />
                   </label>
                 </div>
               </div>
 
               {error && <div className="checkout__error">{error}</div>}
+              {!isPincodeValid && formData.postalCode.length === 6 && (
+                <div className="checkout__pincode-warning">
+                  ⚠️ Please wait for pincode validation to complete or enter a valid pincode.
+                </div>
+              )}
+              {formData.postalCode.length > 0 && formData.postalCode.length < 6 && (
+                <div className="checkout__pincode-warning">
+                  ⚠️ Please enter a complete 6-digit pincode to continue.
+                </div>
+              )}
               <button 
                 type="submit" 
-                disabled={loading} 
+                disabled={loading || !validateForm() || !isPincodeValid || validatingPincode} 
                 className="checkout__button"
+                title={!validateForm() || !isPincodeValid ? 'Please complete all required fields and validate pincode' : ''}
               >
                 {loading ? 'Placing Order...' : 'Place Order'}
               </button>
@@ -249,6 +558,25 @@ function Checkout() {
                 <div>₹{(item.price * item.qty).toFixed(2)}</div>
               </div>
             ))}
+            <div className="checkout__summary-row checkout__summary-row-border">
+              <span>Subtotal</span>
+              <span>₹{subtotal.toFixed(2)}</span>
+            </div>
+            {discount > 0 && (
+              <div className="checkout__summary-row checkout__summary-row-discount">
+                <span>Discount {appliedPromoCode && `(${appliedPromoCode})`}</span>
+                <span>-₹{discount.toFixed(2)}</span>
+              </div>
+            )}
+            <div className="checkout__summary-row">
+              <span>
+                Delivery Charge
+                {loadingDeliveryCharge && <small className="checkout__loading-text"> (calculating...)</small>}
+              </span>
+              <span>
+                {loadingDeliveryCharge ? '...' : `₹${deliveryCharge.toFixed(2)}`}
+              </span>
+            </div>
             <div className="checkout__summary-total">
               Total: ₹{total.toFixed(2)}
             </div>
@@ -259,7 +587,7 @@ function Checkout() {
         <div className="checkout__phonepe-modal">
           <div className="checkout__phonepe-content">
             <div className="checkout__phonepe-header">
-              <img src="https://cdn.worldvectorlogo.com/logos/phonepe-1.svg" alt="PhonePe" style={{height:44, marginBottom:8}} />
+              <img src="https://cdn.worldvectorlogo.com/logos/phonepe-1.svg" alt="PhonePe" className="checkout__phonepe-logo" />
               <h3>Pay securely via PhonePe UPI</h3>
             </div>
             <div className="checkout__phonepe-qr">
@@ -267,24 +595,24 @@ function Checkout() {
               <img src="https://api.qrserver.com/v1/create-qr-code/?data=upi%3Apay%3Aphonepe%40upi&size=180x180" alt="PhonePe UPI QR" />
             </div>
             <div className="checkout__phonepe-desc">
-              Scan this QR with PhonePe app to pay ₹{total.toFixed(2)} to <b>NutriBites</b>.<br/>
+              Scan this QR with PhonePe app to pay ₹{Math.max(0, total).toFixed(2)} to <b>NutriBites</b>.<br/>
               <small>Demo only. (Integrate actual callback for production use.)</small>
             </div>
-            <button className="checkout__button" style={{marginTop:16}} onClick={handlePhonePePaid}>
+            <button className="checkout__button checkout__phonepe-button" onClick={handlePhonePePaid}>
               I've Paid with PhonePe
             </button>
-            <button className="checkout__empty-button" style={{marginTop:8}} onClick={()=>setPhonePeShow(false)}>
+            <button className="checkout__empty-button checkout__phonepe-cancel-button" onClick={()=>setPhonePeShow(false)}>
               Cancel
             </button>
           </div>
         </div>
       )}
       {paymentFailed && (
-        <div className="checkout__phonepe-modal">
-          <div className="checkout__phonepe-content">
-            <div style={{fontSize:44, color:'#c62828', marginBottom:9}}>❌</div>
-            <div style={{fontWeight:600, fontSize:18, color:'#c62828', marginBottom:15}}>Payment Failed</div>
-            <div style={{marginBottom:14, color:'#c62828'}}>{failedMessage}</div>
+        <div className="checkout__error-modal">
+          <div className="checkout__error-content">
+            <div className="checkout__error-icon">❌</div>
+            <div className="checkout__error-title">Payment Failed</div>
+            <div className="checkout__error-message">{failedMessage}</div>
             <button className="checkout__button" onClick={()=>setPaymentFailed(false)}>
               Try Again
             </button>

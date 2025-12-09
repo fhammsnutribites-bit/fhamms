@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useReducer } from 'react';
-import axios from 'axios';
-import { API_URL } from '../config/api.js';
+import { authApi } from '../services/authApi.js';
+import { usersApi } from '../services/usersApi.js';
 
 const AuthContext = createContext();
 const initialState = {
@@ -38,9 +38,7 @@ export const AuthProvider = ({ children }) => {
       if (token && userStr) {
         try {
           // Verify token is still valid by making a request
-          const { data } = await axios.get(`${API_URL}/api/users/me`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
+          const data = await usersApi.getProfile();
           // Update user data from server
           localStorage.setItem('user', JSON.stringify(data));
           dispatch({ type: 'LOAD_USER', payload: data });
@@ -63,13 +61,11 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     dispatch({ type: 'LOADING' });
     try {
-      const { data } = await axios.post(
-        `${API_URL}/api/auth/login`,
-        { email, password }
-      );
+      const data = await authApi.login(email, password);
       localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('token', data.token);
       dispatch({ type: 'LOGIN_SUCCESS', payload: data.user });
+      // Cart merge will be handled by CartContext useEffect
       return data.user;
     } catch (err) {
       console.error('Login error:', err);
@@ -82,14 +78,11 @@ export const AuthProvider = ({ children }) => {
   const register = async (name, email, password, isAdmin = false) => {
     dispatch({ type: 'LOADING' });
     try {
-      console.log('Registering with:', { name, email, isAdmin, API_URL: `${API_URL}/api/auth/register` });
-      const { data } = await axios.post(
-        `${API_URL}/api/auth/register`,
-        { name, email, password, isAdmin }
-      );
+      const data = await authApi.register({ name, email, password, isAdmin });
       localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('token', data.token);
       dispatch({ type: 'LOGIN_SUCCESS', payload: data.user });
+      // Cart merge will be handled by CartContext useEffect
       return data.user;
     } catch (err) {
       console.error('Register error:', err);

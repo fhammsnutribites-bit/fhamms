@@ -1,46 +1,42 @@
-import { useEffect, useState } from 'react';
-import axios from 'axios';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import Navbar from '../../components/Navbar.jsx';
-import { API_URL } from '../../config/api.js';
+import { ordersApi } from '../../services/ordersApi.js';
 
 function AdminOrders() {
   const { user } = useAuth();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
-
-  async function fetchOrders() {
-    if (!user?.isAdmin) return;
+  const fetchOrders = useCallback(async () => {
+    if (!user?.isAdmin) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const { data } = await axios.get(
-        `${API_URL}/api/orders`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const data = await ordersApi.getAll();
       setOrders(data);
     } catch (err) {
-      console.error('Failed to load orders');
+      console.error('Failed to load orders:', err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }
+  }, [user]);
 
-  const handleDeliver = async orderId => {
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
+  const handleDeliver = useCallback(async (orderId) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.put(
-        `${API_URL}/api/orders/${orderId}/deliver`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await ordersApi.markAsDelivered(orderId);
       fetchOrders();
     } catch (err) {
       alert('Failed to update order');
+      console.error('Mark as delivered error:', err);
     }
-  };
+  }, [fetchOrders]);
 
   if (!user?.isAdmin) {
     return (

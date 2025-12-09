@@ -1,11 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
-import { API_URL } from '../config/api.js';
+import ReviewsSection from '../components/ReviewsSection.jsx';
+import RatingDisplay from '../components/RatingDisplay.jsx';
+import { getProductPriceInfo } from '../utils/discount.js';
+import SEO from '../SEO.jsx';
+import { productsApi } from '../services/productsApi.js';
 import { useCart } from '../context/CartContext.jsx';
 import '../styles/pages/home.css';
+import '../styles/components/reviews-section.css';
 
 function Home() {
   const navigate = useNavigate();
@@ -13,27 +17,52 @@ function Home() {
   const [categories, setCategories] = useState([]);
   const { addToCart } = useCart();
 
-  useEffect(() => {
-    async function fetchProducts() {
-      try {
-        const { data } = await axios.get(`${API_URL}/api/products`);
-        setProducts(data);
-        
-        // Extract unique categories
-        const uniqueCategories = [...new Set(data.map(p => p.category).filter(Boolean))];
-        setCategories(uniqueCategories.slice(0, 6));
-      } catch (err) {
-        console.error('Failed to load products');
-      }
+  const categoryIcons = useMemo(() => ['🍪', '🥜', '🌰', '🍯', '🌾', '🥥'], []);
+
+  const fetchProducts = useCallback(async () => {
+    try {
+      const data = await productsApi.getAll();
+      setProducts(data);
+      
+      // Extract unique categories
+      const uniqueCategories = [...new Set(data.map(p => p.category).filter(Boolean))];
+      setCategories(uniqueCategories.slice(0, 6));
+    } catch (err) {
+      console.error('Failed to load products:', err);
     }
-    fetchProducts();
   }, []);
 
-  const trendingProducts = products.slice(0, 4);
-  const categoryIcons = ['🍪', '🥜', '🌰', '🍯', '🌾', '🥥'];
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  const trendingProducts = useMemo(() => products.slice(0, 4), [products]);
+
+  const handleAddToCart = useCallback((product, event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    // Calculate proper price and original price for discount detection
+    const priceInfo = getProductPriceInfo(product);
+    const finalPrice = priceInfo ? (priceInfo.hasDiscount ? priceInfo.discounted : priceInfo.original) : product.price;
+
+    const productWithPrice = {
+      ...product,
+      price: finalPrice,
+      originalPrice: priceInfo ? priceInfo.original : product.price
+    };
+
+    addToCart(productWithPrice, 1);
+    navigate('/cart');
+  }, [addToCart, navigate]);
 
   return (
     <div className="home">
+      <SEO 
+        title="Dry Fruit Laddus Online | Premium Nutri Laddus | FHAMMS Nutri Bites"
+        description="Buy premium dry fruit laddus online at FHAMMS Nutri Bites. Handmade dry fruit laddus with almonds, cashews, dates & jaggery. Best dry fruit laddus in India. Order now for healthy & delicious laddus."
+        keywords="dry fruit laddus, dry fruit laddu, dry fruit laddus online, buy dry fruit laddus, premium dry fruit laddus, dry fruit laddus price, best dry fruit laddus, dry fruit laddus near me, homemade dry fruit laddus, healthy dry fruit laddus, nutri laddus"
+      />
       <Navbar />
       
       {/* Hero Section */}
@@ -41,18 +70,18 @@ function Home() {
         <div className="home__hero-container">
           <div>
             <div className="home__hero-badge">
-              ⭐ 5.0 Rated Premium Laddus
+              ⭐ 5.0 Rated Premium Dry Fruit Laddus
             </div>
             <h1 className="home__hero-title">
-              <span className="home__hero-title--highlight">NutriBites Laddus</span>
+              <span className="home__hero-title--highlight">Premium Dry Fruit Laddus</span>
               <span className="home__hero-title--dark">Healthy & Delicious</span>
             </h1>
             <p className="home__hero-description">
-              Discover our handcrafted collection of traditional and healthy laddus made with pure ingredients, premium dry fruits, and authentic recipes. Taste the goodness in every bite!
+              Buy the best dry fruit laddus online! Our premium dry fruit laddus are handcrafted with almonds, cashews, dates, and jaggery. Order authentic dry fruit laddus made with pure ingredients - perfect for health, energy, and taste. Get fresh dry fruit laddus delivered to your doorstep!
             </p>
             <div className="home__hero-actions">
               <Link to="/products" className="home__hero-button">
-                Shop Laddus →
+                Buy Dry Fruit Laddus →
               </Link>
               <button className="home__hero-button home__hero-button--secondary">
                 ▶ Our Story
@@ -67,51 +96,22 @@ function Home() {
               ))}
             </div>
           </div>
-          <div style={{ position: 'relative' }}>
-            <div style={{
-              background: 'white',
-              borderRadius: '20px',
-              padding: '20px',
-              boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
-              position: 'relative'
-            }}>
+          <div className="home__hero-image-wrapper">
+            <div className="home__hero-image-container">
               {products[0]?.image ? (
                 <img
                   src={products[0].image}
                   alt="Featured Laddu"
                   className="home__hero-image"
-                  style={{ height: '450px' }}
                 />
               ) : (
-                <div style={{
-                  width: '100%',
-                  height: '450px',
-                  background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
-                  borderRadius: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'white',
-                  fontSize: '120px'
-                }}>
+                <div className="home__hero-image-placeholder">
                   🍪
                 </div>
               )}
-              <div style={{
-                position: 'absolute',
-                bottom: '30px',
-                left: '30px',
-                background: 'white',
-                padding: '12px 20px',
-                borderRadius: '12px',
-                boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                border: '2px solid #ff9800'
-              }}>
-                <span style={{ fontSize: '24px' }}>🔥</span>
-                <span style={{ fontWeight: 'bold', color: '#333' }}>
+              <div className="home__hero-bestseller-badge">
+                <span className="home__hero-bestseller-icon">🔥</span>
+                <span className="home__hero-bestseller-text">
                   Best Seller
                 </span>
               </div>
@@ -122,17 +122,12 @@ function Home() {
 
       {/* Shop by Category Section */}
       <div className="home__section">
-        <div style={{ textAlign: 'center', marginBottom: '50px' }}>
+        <div className="home__section-header">
           <h2 className="home__section-title">
-            Shop by Category
+            Shop Premium Dry Fruit Laddus by Category
           </h2>
-          <p style={{
-            fontSize: '18px',
-            color: '#666',
-            maxWidth: '600px',
-            margin: '0 auto'
-          }}>
-            Explore our wide variety of traditional and healthy laddus
+          <p className="home__section-subtitle">
+            Explore our wide variety of premium dry fruit laddus - from traditional recipes to modern healthy variants. Buy the best dry fruit laddus online!
           </p>
         </div>
         <div className="home__categories">
@@ -140,7 +135,7 @@ function Home() {
             <Link
               key={idx}
               to="/products"
-              style={{ textDecoration: 'none', color: 'inherit' }}
+              className="home__product-link"
             >
               <div className="home__category-card">
                 <div className="home__category-icon">
@@ -154,7 +149,7 @@ function Home() {
               <Link
                 key={idx}
                 to="/products"
-                style={{ textDecoration: 'none', color: 'inherit' }}
+                className="home__product-link"
               >
                 <div className="home__category-card">
                   <div className="home__category-icon">
@@ -170,42 +165,19 @@ function Home() {
 
       {/* Trending Now Section */}
       {trendingProducts.length > 0 && (
-        <div style={{ background: '#f8f9fa', padding: '80px 40px' }}>
-          <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '40px',
-              flexWrap: 'wrap',
-              gap: '20px'
-            }}>
-              <div>
-                <h2 style={{
-                  fontSize: '36px',
-                  fontWeight: 'bold',
-                  color: '#1b5e20',
-                  marginBottom: '10px'
-                }}>
-                  Trending Laddus
+        <div className="home__trending-section">
+          <div className="home__trending-container">
+            <div className="home__trending-header">
+              <div className="home__trending-title-section">
+                <h2 className="home__trending-title">
+                  Best Selling Dry Fruit Laddus
                 </h2>
-                <p style={{ fontSize: '16px', color: '#666' }}>
-                  Our most popular laddus this week
+                <p className="home__trending-subtitle">
+                  Our most popular dry fruit laddus - handcrafted with premium ingredients
                 </p>
               </div>
-              <Link to="/products" style={{
-                color: '#4caf50',
-                textDecoration: 'none',
-                fontWeight: '600',
-                fontSize: '16px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
-              onMouseEnter={(e) => e.target.style.gap = '12px'}
-              onMouseLeave={(e) => e.target.style.gap = '8px'}
-              >
-                View All Laddus →
+              <Link to="/products" className="home__trending-link">
+                View All Dry Fruit Laddus →
               </Link>
             </div>
             <div className="home__products-grid">
@@ -216,7 +188,7 @@ function Home() {
                       BESTSELLER
                     </div>
                   )}
-                  <Link to={`/products/${prod._id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <Link to={`/products/${prod._id}`} className="home__product-link">
                     {prod.image && (
                       <div className="home__product-image" style={{ backgroundImage: `url(${prod.image})` }} />
                     )}
@@ -225,27 +197,17 @@ function Home() {
                         <span className="home__product-category">{prod.category}</span>
                       )}
                       <h3 className="home__product-name">{prod.name}</h3>
-                      <div className="home__product-rating">
-                        <div style={{ display: 'flex', gap: '2px' }}>
-                          {[1,2,3,4,5].map(() => (
-                            <span key={Math.random()} style={{ color: '#ffc107', fontSize: '16px' }}>★</span>
-                          ))}
-                        </div>
-                        <span style={{ fontSize: '14px', color: '#666' }}>
-                          ({Math.floor(Math.random() * 200 + 50)} reviews)
-                        </span>
-                      </div>
+                      <RatingDisplay
+                        rating={prod.averageRating || 0}
+                        reviewCount={prod.reviewCount || 0}
+                        size="small"
+                      />
                       <p className="home__product-price">₹{prod.price || prod.basePrice}</p>
                     </div>
                   </Link>
-                  <div style={{ padding: '0 20px 20px' }}>
+                  <div className="home__product-actions">
                     <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        addToCart(prod, 1);
-                        navigate('/cart');
-                      }}
+                      onClick={(e) => handleAddToCart(prod, e)}
                       className="home__product-button"
                     >
                       Add to Cart
@@ -279,6 +241,8 @@ function Home() {
           </div>
         </div>
       </div>
+
+      <ReviewsSection />
 
       <Footer />
     </div>

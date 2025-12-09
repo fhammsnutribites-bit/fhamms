@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react';
-import axios from 'axios';
+import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
-import { API_URL } from '../config/api.js';
+import { ordersApi } from '../services/ordersApi.js';
 import '../styles/pages/orders.css';
 
 function Orders() {
@@ -12,30 +11,28 @@ function Orders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchOrders() {
-      // Wait for auth to finish loading
-      if (authLoading) {
-        return;
-      }
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-      try {
-        const token = localStorage.getItem('token');
-        const { data } = await axios.get(
-          `${API_URL}/api/orders/my`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        setOrders(data);
-      } catch (err) {
-        console.error('Failed to load orders:', err);
-      }
+  const fetchOrders = useCallback(async () => {
+    // Wait for auth to finish loading
+    if (authLoading) {
+      return;
+    }
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    try {
+      const data = await ordersApi.getMyOrders();
+      setOrders(data);
+    } catch (err) {
+      console.error('Failed to load orders:', err);
+    } finally {
       setLoading(false);
     }
-    fetchOrders();
   }, [user, authLoading]);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   // Show loading while checking auth
   if (authLoading) {

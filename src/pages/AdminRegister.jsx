@@ -3,8 +3,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
-import { API_URL } from '../config/api.js';
-import axios from 'axios';
+import { authApi } from '../services/authApi.js';
 
 function AdminRegister() {
   const [name, setName] = useState('');
@@ -19,17 +18,15 @@ function AdminRegister() {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await axios.post(
-        `${API_URL}/api/auth/register`,
-        { name, email, password, isAdmin: true }
-      );
+      const data = await authApi.register({ name, email, password, isAdmin: true });
       localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('token', data.token);
       navigate('/admin');
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (

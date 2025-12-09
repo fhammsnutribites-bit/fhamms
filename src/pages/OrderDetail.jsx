@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { useAuth } from '../context/AuthContext.jsx';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
-import { API_URL } from '../config/api.js';
+import ReviewForm from '../components/ReviewForm.jsx';
+import { ordersApi } from '../services/ordersApi.js';
+import { reviewsApi } from '../services/reviewsApi.js';
+import RatingDisplay from '../components/RatingDisplay.jsx';
 
 function OrderDetail() {
   const { id } = useParams();
@@ -13,31 +15,89 @@ function OrderDetail() {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [reviews, setReviews] = useState({});
+  const [reviewLoading, setReviewLoading] = useState({});
+  const [reviewErrors, setReviewErrors] = useState({});
 
-  useEffect(() => {
-    async function fetchOrder() {
-      // Wait for auth to finish loading
-      if (authLoading) {
-        return;
-      }
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-      try {
-        const token = localStorage.getItem('token');
-        const { data } = await axios.get(`${API_URL}/api/orders/${id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setOrder(data);
-      } catch (err) {
-        console.error('Failed to load order:', err);
-        setError(err.response?.status === 404 ? 'Order not found' : 'Failed to load order');
-      }
+  const fetchOrder = useCallback(async () => {
+    // Wait for auth to finish loading
+    if (authLoading) {
+      return;
+    }
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await ordersApi.getById(id);
+      setOrder(data);
+    } catch (err) {
+      console.error('Failed to load order:', err);
+      setError(err.response?.status === 404 ? 'Order not found' : 'Failed to load order');
+    } finally {
       setLoading(false);
     }
-    fetchOrder();
   }, [id, user, authLoading]);
+
+  // Fetch user reviews for all products in the order
+  const fetchUserReviews = useCallback(async () => {
+    if (!order || !order.isDelivered) return;
+
+    for (const item of order.orderItems) {
+      const productId = item.product?._id;
+      if (productId) {
+        try {
+          setReviewLoading(prev => ({ ...prev, [productId]: true }));
+          const data = await reviewsApi.getUserReview(productId, order._id);
+          setReviews(prev => ({ ...prev, [productId]: data.review }));
+        } catch (err) {
+          console.error('Failed to fetch review:', err);
+        } finally {
+          setReviewLoading(prev => ({ ...prev, [productId]: false }));
+        }
+      }
+    }
+  }, [order]);
+
+  // Submit or update a review
+  const submitReview = useCallback(async (productId, rating, comment) => {
+    if (!order || !order.isDelivered) return;
+
+    try {
+      setReviewLoading(prev => ({ ...prev, [productId]: true }));
+      setReviewErrors(prev => ({ ...prev, [productId]: null }));
+
+      const reviewData = {
+        productId,
+        orderId: order._id,
+        rating: parseInt(rating),
+        comment: comment.trim()
+      };
+
+      const result = await reviewsApi.createOrUpdateReview(reviewData);
+      setReviews(prev => ({ ...prev, [productId]: result }));
+    } catch (err) {
+      console.error('Failed to submit review:', err);
+      setReviewErrors(prev => ({
+        ...prev,
+        [productId]: err.response?.data?.message || 'Failed to submit review'
+      }));
+    } finally {
+      setReviewLoading(prev => ({ ...prev, [productId]: false }));
+    }
+  }, [order]);
+
+  useEffect(() => {
+    fetchOrder();
+  }, [fetchOrder]);
+
+  useEffect(() => {
+    if (order) {
+      fetchUserReviews();
+    }
+  }, [order, fetchUserReviews]);
 
   // Show loading while checking auth
   if (authLoading) {
@@ -218,7 +278,7 @@ function OrderDetail() {
                 color: '#4caf50',
                 marginBottom: '15px'
               }}>
-                ${order.totalPrice?.toFixed(2) || '0.00'}
+                ₹{order.totalPrice?.toFixed(2) || '0.00'}
               </div>
               <div style={{
                 padding: '10px 20px',
@@ -455,7 +515,7 @@ function OrderDetail() {
                     fontSize: '14px',
                     color: '#666'
                   }}>
-                    Unit Price: <strong>${item.price?.toFixed(2) || '0.00'}</strong>
+                    Unit Price: <strong>₹{item.price?.toFixed(2) || '0.00'}</strong>
                   </div>
                 </div>
                 <div style={{
@@ -464,24 +524,132 @@ function OrderDetail() {
                   color: '#4caf50',
                   textAlign: 'right'
                 }}>
-                  ${((item.qty || 0) * (item.price || 0)).toFixed(2)}
+                  ₹{((item.qty || 0) * (item.price || 0)).toFixed(2)}
                 </div>
+
+                {/* Review Section - Only show for delivered orders */}
+                {order?.isDelivered && item.product && (
+                  <div style={{
+                    marginTop: '15px',
+                    padding: '20px',
+                    background: '#fff',
+                    borderRadius: '12px',
+                    border: '1px solid #e0e0e0'
+                  }}>
+                    <h4 style={{
+                      fontSize: '18px',
+                      fontWeight: '600',
+                      color: '#333',
+                      marginBottom: '15px'
+                    }}>
+                      📝 Rate & Review This Product
+                    </h4>
+
+                    {reviews[item.product._id] ? (
+                      // Show existing review
+                      <div style={{ marginBottom: '15px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                          <span style={{ fontWeight: '600' }}>Your Rating:</span>
+                          <RatingDisplay rating={reviews[item.product._id].rating} size="small" showCount={false} />
+                        </div>
+                        {reviews[item.product._id].comment && (
+                          <div style={{ marginBottom: '10px' }}>
+                            <span style={{ fontWeight: '600' }}>Your Review:</span>
+                            <p style={{ margin: '5px 0', color: '#666', fontStyle: 'italic' }}>
+                              "{reviews[item.product._id].comment}"
+                            </p>
+                          </div>
+                        )}
+                        <button
+                          onClick={() => setReviews(prev => ({ ...prev, [item.product._id]: null }))}
+                          style={{
+                            padding: '8px 16px',
+                            background: '#007bff',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '14px'
+                          }}
+                        >
+                          ✏️ Edit Review
+                        </button>
+                      </div>
+                    ) : (
+                      // Show review form
+                      <ReviewForm
+                        productId={item.product._id}
+                        onSubmit={(rating, comment) => submitReview(item.product._id, rating, comment)}
+                        loading={reviewLoading[item.product._id]}
+                        error={reviewErrors[item.product._id]}
+                      />
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
+          {/* Order Summary Breakdown */}
           <div style={{
             marginTop: '30px',
             paddingTop: '30px',
-            borderTop: '2px solid #e0e0e0',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
+            borderTop: '2px solid #e0e0e0'
           }}>
-            <div style={{ fontSize: '20px', fontWeight: '600', color: '#333' }}>
-              Total Amount:
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '15px',
+              fontSize: '16px',
+              color: '#666'
+            }}>
+              <span>Subtotal:</span>
+              <span style={{ fontWeight: '600', color: '#333' }}>
+                ₹{order.subtotal?.toFixed(2) || order.totalPrice?.toFixed(2) || '0.00'}
+              </span>
             </div>
-            <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#4caf50' }}>
-              ${order.totalPrice?.toFixed(2) || '0.00'}
+            {order.discount > 0 && (
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '15px',
+                fontSize: '16px',
+                color: '#28a745'
+              }}>
+                <span>Discount {order.promoCode && `(${order.promoCode})`}:</span>
+                <span style={{ fontWeight: '600' }}>
+                  -₹{order.discount.toFixed(2)}
+                </span>
+              </div>
+            )}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '15px',
+              fontSize: '16px',
+              color: '#666'
+            }}>
+              <span>Delivery Charge:</span>
+              <span style={{ fontWeight: '600', color: '#333' }}>
+                ₹{order.deliveryCharge?.toFixed(2) || '0.00'}
+              </span>
+            </div>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              paddingTop: '15px',
+              borderTop: '1px solid #e0e0e0',
+              marginTop: '15px'
+            }}>
+              <div style={{ fontSize: '20px', fontWeight: '600', color: '#333' }}>
+                Total Amount:
+              </div>
+              <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#4caf50' }}>
+                ₹{order.totalPrice?.toFixed(2) || '0.00'}
+              </div>
             </div>
           </div>
         </div>

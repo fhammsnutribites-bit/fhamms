@@ -170,6 +170,14 @@
   margin-bottom: 15px;
 }
 
+.products__card-price {
+  font-size: 28px;
+  font-weight: bold;
+  color: #4caf50;
+  margin-top: auto;
+  margin-bottom: 15px;
+}
+
 .products__card-actions {
   padding: 0 20px 20px;
 }

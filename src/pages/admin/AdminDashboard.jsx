@@ -1,106 +1,112 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
 import { useAuth } from '../../context/AuthContext.jsx';
 import Navbar from '../../components/Navbar.jsx';
-import { API_URL } from '../../config/api.js';
+import { productsApi } from '../../services/productsApi.js';
+import { ordersApi } from '../../services/ordersApi.js';
+import { usersApi } from '../../services/usersApi.js';
+import '../../styles/pages/admin-dashboard.css';
 
 function AdminDashboard() {
   const { user } = useAuth();
   const [stats, setStats] = useState({ products: 0, orders: 0, users: 0 });
   const [recentOrders, setRecentOrders] = useState([]);
 
-  useEffect(() => {
-    async function fetchData() {
-      if (!user?.isAdmin) return;
-      try {
-        const token = localStorage.getItem('token');
-        const [productsRes, ordersRes, usersRes] = await Promise.all([
-          axios.get(`${API_URL}/api/products`),
-          axios.get(`${API_URL}/api/orders`, {
-            headers: { Authorization: `Bearer ${token}` }
-          }),
-          axios.get(`${API_URL}/api/users`, {
-            headers: { Authorization: `Bearer ${token}` }
-          })
-        ]);
-        setStats({
-          products: productsRes.data.length,
-          orders: ordersRes.data.length,
-          users: usersRes.data.length
-        });
-        setRecentOrders(ordersRes.data.slice(0, 5));
-      } catch (err) {
-        console.error('Failed to load dashboard data');
-      }
+  const fetchData = useCallback(async () => {
+    if (!user?.isAdmin) return;
+    try {
+      const [productsData, ordersData, usersData] = await Promise.all([
+        productsApi.getAll(),
+        ordersApi.getAll(),
+        usersApi.getAll()
+      ]);
+      setStats({
+        products: productsData.length,
+        orders: ordersData.length,
+        users: usersData.length
+      });
+      setRecentOrders(ordersData.slice(0, 5));
+    } catch (err) {
+      console.error('Failed to load dashboard data:', err);
     }
-    fetchData();
   }, [user]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   if (!user?.isAdmin) {
     return (
-      <div>
+      <div className="admin-dashboard">
         <Navbar />
-        <div style={{padding:40,textAlign:'center'}}>Access Denied</div>
+        <div className="admin-dashboard__access-denied">Access Denied</div>
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="admin-dashboard">
       <Navbar />
-      <div style={{padding:40}}>
-        <h2>Admin Dashboard</h2>
-        <div style={{display:'flex',gap:20,marginBottom:30}}>
-          <Link to="/admin/products" style={{padding:'10px 20px',background:'#007bff',color:'white',textDecoration:'none',borderRadius:5}}>
+      <div className="admin-dashboard__container">
+        <h2 className="admin-dashboard__title">Admin Dashboard</h2>
+        <div className="admin-dashboard__actions">
+          <Link to="/admin/products" className="admin-dashboard__action-link admin-dashboard__action-link--products">
             Manage Products
           </Link>
-          <Link to="/admin/orders" style={{padding:'10px 20px',background:'#28a745',color:'white',textDecoration:'none',borderRadius:5}}>
+          <Link to="/admin/orders" className="admin-dashboard__action-link admin-dashboard__action-link--orders">
             Manage Orders
           </Link>
-          <Link to="/admin/users" style={{padding:'10px 20px',background:'#dc3545',color:'white',textDecoration:'none',borderRadius:5}}>
+          <Link to="/admin/users" className="admin-dashboard__action-link admin-dashboard__action-link--users">
             Manage Users
           </Link>
+          <Link to="/admin/promo-codes" className="admin-dashboard__action-link admin-dashboard__action-link--promo-codes">
+            Manage Promo Codes
+          </Link>
+          <Link to="/admin/delivery-charges" className="admin-dashboard__action-link admin-dashboard__action-link--delivery-charges">
+            Manage Delivery Charges
+          </Link>
         </div>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:20,marginBottom:30}}>
-          <div style={{padding:20,border:'1px solid #ddd',borderRadius:8}}>
-            <h3>Total Products</h3>
-            <p style={{fontSize:32,fontWeight:'bold'}}>{stats.products}</p>
+        <div className="admin-dashboard__stats">
+          <div className="admin-dashboard__stat-card">
+            <h3 className="admin-dashboard__stat-title">Total Products</h3>
+            <p className="admin-dashboard__stat-value">{stats.products}</p>
           </div>
-          <div style={{padding:20,border:'1px solid #ddd',borderRadius:8}}>
-            <h3>Total Orders</h3>
-            <p style={{fontSize:32,fontWeight:'bold'}}>{stats.orders}</p>
+          <div className="admin-dashboard__stat-card">
+            <h3 className="admin-dashboard__stat-title">Total Orders</h3>
+            <p className="admin-dashboard__stat-value">{stats.orders}</p>
           </div>
-          <div style={{padding:20,border:'1px solid #ddd',borderRadius:8}}>
-            <h3>Total Users</h3>
-            <p style={{fontSize:32,fontWeight:'bold'}}>{stats.users}</p>
+          <div className="admin-dashboard__stat-card">
+            <h3 className="admin-dashboard__stat-title">Total Users</h3>
+            <p className="admin-dashboard__stat-value">{stats.users}</p>
           </div>
         </div>
-        <div>
-          <h3>Recent Orders</h3>
+        <div className="admin-dashboard__orders-section">
+          <h3 className="admin-dashboard__orders-title">Recent Orders</h3>
           {recentOrders.length === 0 ? (
-            <p>No orders yet</p>
+            <p className="admin-dashboard__orders-empty">No orders yet</p>
           ) : (
-            <table style={{width:'100%',borderCollapse:'collapse'}}>
-              <thead>
-                <tr style={{background:'#f5f5f5'}}>
-                  <th style={{padding:10,textAlign:'left'}}>Order ID</th>
-                  <th style={{padding:10,textAlign:'left'}}>User</th>
-                  <th style={{padding:10,textAlign:'left'}}>Total</th>
-                  <th style={{padding:10,textAlign:'left'}}>Status</th>
-                  <th style={{padding:10,textAlign:'left'}}>Date</th>
+            <table className="admin-dashboard__table">
+              <thead className="admin-dashboard__table-header">
+                <tr>
+                  <th className="admin-dashboard__table-header-cell">Order ID</th>
+                  <th className="admin-dashboard__table-header-cell">User</th>
+                  <th className="admin-dashboard__table-header-cell">Total</th>
+                  <th className="admin-dashboard__table-header-cell">Status</th>
+                  <th className="admin-dashboard__table-header-cell">Date</th>
                 </tr>
               </thead>
               <tbody>
                 {recentOrders.map(order => (
-                  <tr key={order._id} style={{borderBottom:'1px solid #ddd'}}>
-                    <td style={{padding:10}}>{order._id.substring(0, 8)}...</td>
-                    <td style={{padding:10}}>{order.user?.name || 'N/A'}</td>
-                    <td style={{padding:10}}>${order.totalPrice}</td>
-                    <td style={{padding:10}}>
-                      {order.isDelivered ? <span style={{color:'green'}}>Delivered</span> : <span style={{color:'orange'}}>Processing</span>}
+                  <tr key={order._id} className="admin-dashboard__table-row">
+                    <td className="admin-dashboard__table-cell">{order._id.substring(0, 8)}...</td>
+                    <td className="admin-dashboard__table-cell">{order.user?.name || 'N/A'}</td>
+                    <td className="admin-dashboard__table-cell">₹{order.totalPrice}</td>
+                    <td className="admin-dashboard__table-cell">
+                      <span className={`admin-dashboard__status ${order.isDelivered ? 'admin-dashboard__status--delivered' : 'admin-dashboard__status--processing'}`}>
+                        {order.isDelivered ? 'Delivered' : 'Processing'}
+                      </span>
                     </td>
-                    <td style={{padding:10}}>{new Date(order.createdAt).toLocaleDateString()}</td>
+                    <td className="admin-dashboard__table-cell">{new Date(order.createdAt).toLocaleDateString()}</td>
                   </tr>
                 ))}
               </tbody>

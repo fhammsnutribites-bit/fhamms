@@ -1,0 +1,81 @@
+/* Price Display Component - BEM Methodology */
+.price-display {
+  display: inline-block;
+}
+
+.price-display__container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.price-display__original {
+  text-decoration: line-through;
+  color: #999;
+  font-size: inherit;
+}
+
+.price-display--small .price-display__original {
+  font-size: 13px;
+}
+
+.price-display--medium .price-display__original {
+  font-size: 14px;
+}
+
+.price-display--large .price-display__original {
+  font-size: 20px;
+}
+
+.price-display__discounted {
+  color: #28a745;
+  font-weight: bold;
+  font-size: inherit;
+}
+
+.price-display--small .price-display__discounted {
+  font-size: 14px;
+}
+
+.price-display--medium .price-display__discounted {
+  font-size: 18px;
+}
+
+.price-display--large .price-display__discounted {
+  font-size: 28px;
+}
+
+.price-display__badge {
+  background: #28a745;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.price-display--small .price-display__badge {
+  font-size: 10px;
+  padding: 2px 6px;
+}
+
+.price-display--medium .price-display__badge {
+  font-size: 11px;
+  padding: 2px 8px;
+}
+
+.price-display--large .price-display__badge {
+  font-size: 14px;
+  padding: 4px 12px;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .price-display__container {
+    gap: 6px;
+  }
+}
+
+
+
