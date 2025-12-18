@@ -225,5 +225,34 @@
     font-size: 18px;
   }
 }
+.navbar__logo-icon {
+  display: flex;
+  align-items: center;
+}
+
+.navbar__logo-icon img {
+  height: 42px;              /* perfect navbar size */
+  width: auto;
+  object-fit: contain;
+  border-radius: 50%;        /* gives modern badge look */
+  transition: transform 0.3s ease, filter 0.3s ease;
+}
+
+/* Hover effect (premium feel) */
+.navbar__logo-icon img:hover {
+  transform: scale(1.08);
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.2));
+}
+
+/* Mobile optimization */
+@media (max-width: 768px) {
+  .navbar__logo-icon img {
+    height: 34px;
+  }
+}
+.navbar__logo-icon img {
+  background: #fff;
+  padding: 4px;
+}
 
 
