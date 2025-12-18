@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { memo } from 'react';
 
 /**
  * Review Form Component for submitting product reviews
@@ -7,16 +8,28 @@ function ReviewForm({ productId, onSubmit, loading, error }) {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [hoverRating, setHoverRating] = useState(0);
+  const onSubmitRef = useRef(onSubmit);
+
+  // Keep the ref updated with the latest onSubmit
+  onSubmitRef.current = onSubmit;
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (rating >= 1 && rating <= 5) {
-      onSubmit(rating, comment);
+    e.stopPropagation();
+    if (loading || rating < 1 || rating > 5) {
+      return;
     }
+
+    // Use ref to avoid stale closures
+    onSubmitRef.current(rating, comment);
+  };
+
+  const handleFormClick = (e) => {
+    e.stopPropagation();
   };
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} onClick={handleFormClick}>
       <div style={{ marginBottom: '15px' }}>
         <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px' }}>
           Rating: *
@@ -91,7 +104,8 @@ function ReviewForm({ productId, onSubmit, loading, error }) {
           borderRadius: '6px',
           cursor: loading ? 'not-allowed' : 'pointer',
           fontSize: '14px',
-          fontWeight: '600'
+          fontWeight: '600',
+          transition: 'background-color 0.2s ease'
         }}
       >
         {loading ? 'Submitting...' : 'Submit Review'}
@@ -100,5 +114,13 @@ function ReviewForm({ productId, onSubmit, loading, error }) {
   );
 }
 
-export default ReviewForm;
+// Memoize with custom comparison to prevent unnecessary re-renders
+export default memo(ReviewForm, (prevProps, nextProps) => {
+  return (
+    prevProps.productId === nextProps.productId &&
+    prevProps.loading === nextProps.loading &&
+    prevProps.error === nextProps.error &&
+    prevProps.onSubmit === nextProps.onSubmit
+  );
+});
 

@@ -4,10 +4,14 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useCart } from '../context/CartContext.jsx';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
+import Loader from '../components/Loader.jsx';
 import { promoCodeApi } from '../services/promoCodeApi.js';
 import { ordersApi } from '../services/ordersApi.js';
 import { deliveryChargeApi } from '../services/deliveryChargeApi.js';
 import { addressApi } from '../services/addressApi.js';
+import { razorpayApi } from '../services/razorpayApi.js';
+import { getDisplayOrderNumber } from '../utils/orderUtils.js';
+
 import '../styles/pages/checkout.css';
 
 const REQUIRED_FIELDS = {
@@ -33,10 +37,7 @@ function Checkout() {
   const [pincodeError, setPincodeError] = useState('');
   const [validatingPincode, setValidatingPincode] = useState(false);
   const [isPincodeValid, setIsPincodeValid] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('PhonePe');
-  const [phonePeShow, setPhonePeShow] = useState(false);
-  const [paymentFailed, setPaymentFailed] = useState(false);
-  const [failedMessage, setFailedMessage] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('Razorpay');
   const [promoCode, setPromoCode] = useState('');
   const [promoCodeError, setPromoCodeError] = useState('');
   const [promoCodeSuccess, setPromoCodeSuccess] = useState('');
@@ -90,6 +91,16 @@ function Checkout() {
     clearCart();
     navigate('/order-success', { state: { order } });
   }, [clearCart, navigate]);
+
+  const navigateToFailed = useCallback((orderId, errorMessage, order = null) => {
+    navigate('/order-failed', {
+      state: {
+        orderId,
+        errorMessage,
+        order
+      }
+    });
+  }, [navigate]);
 
   const validatePromoCode = useCallback(async () => {
     if (!promoCode.trim()) {
@@ -236,7 +247,6 @@ function Checkout() {
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     setError(null);
-    setPaymentFailed(false);
     
     if (!validateForm()) {
       return;
@@ -249,48 +259,91 @@ function Checkout() {
     
     setLoading(true);
     try {
-      if (paymentMethod === 'PhonePe') {
-        setPhonePeShow(true);
-        setLoading(false);
-        return;
-      }
-      
+      // Create order first
       const orderData = createOrderData();
-      const data = await ordersApi.create(orderData);
-      redirectToSuccess(data);
-    } catch (err) {
-      setPaymentFailed(true);
-      setFailedMessage(err.response?.data?.message || 'Order placement/payment failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  }, [validateForm, user, paymentMethod, createOrderData, redirectToSuccess]);
+      const order = await ordersApi.create(orderData);
 
-  // Simulated PhonePe Gateway completion
-  const handlePhonePePaid = useCallback(async () => {
-    setLoading(true);
-    setPaymentFailed(false);
-    setFailedMessage('');
-    
-    // Validate again in the modal
-    if (!validateForm()) {
-      setLoading(false);
-      return;
-    }
-    
-    try {
-      const orderData = createOrderData();
-      const data = await ordersApi.create(orderData);
-      setPhonePeShow(false);
-      redirectToSuccess(data);
+      if (paymentMethod === 'Razorpay') {
+        // Initiate Razorpay payment
+        try {
+          const razorpayOrder = await razorpayApi.createOrder(order._id);
+
+          // Load Razorpay script if not already loaded
+          if (!window.Razorpay) {
+            const script = document.createElement('script');
+            script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+            script.async = true;
+            document.body.appendChild(script);
+
+            // Wait for script to load
+            await new Promise((resolve, reject) => {
+              script.onload = resolve;
+              script.onerror = reject;
+              setTimeout(reject, 10000); // 10 second timeout
+            });
+          }
+
+          // Initialize Razorpay checkout
+          const options = {
+            key: razorpayOrder.key,
+            amount: razorpayOrder.order.amount,
+            currency: razorpayOrder.order.currency,
+            name: 'FHAMMS',
+            description: `${getDisplayOrderNumber(order._id)}`,
+            order_id: razorpayOrder.order.id,
+            prefill: {
+              name: user.name || '',
+              email: user.email || '',
+              contact: order.shippingAddress?.phone || ''
+            },
+            notes: {
+              orderId: order._id,
+              address: `${order.shippingAddress?.address}, ${order.shippingAddress?.city}, ${order.shippingAddress?.postalCode}`
+            },
+            theme: {
+              color: '#4caf50'
+            },
+            handler: async function (response) {
+              try {
+                // Verify payment
+                await razorpayApi.verifyPayment({
+                  order_id: response.razorpay_order_id,
+                  payment_id: response.razorpay_payment_id,
+                  signature: response.razorpay_signature
+                });
+
+                // Redirect to success
+                redirectToSuccess(order);
+              } catch (verifyError) {
+                console.error('Payment verification failed:', verifyError);
+                navigateToFailed(order._id, 'Payment verification failed. Please contact support if amount was debited.', order);
+              }
+            },
+            modal: {
+              ondismiss: function() {
+                navigateToFailed(order._id, 'Payment was cancelled. Please try again.', order);
+              }
+            }
+          };
+
+          const razorpayInstance = new window.Razorpay(options);
+          razorpayInstance.open();
+
+        } catch (razorpayError) {
+          console.error('Razorpay payment initiation error:', razorpayError);
+          navigateToFailed(order._id, 'Failed to initiate Razorpay payment. Please try again.', order);
+        }
+      } else {
+        // For other payment methods, redirect to success
+        redirectToSuccess(order);
+      }
     } catch (err) {
-      setPaymentFailed(true);
-      setPhonePeShow(false);
-      setFailedMessage(err.response?.data?.message || 'PhonePe payment failed. Please try again.');
+      navigateToFailed(null, err.response?.data?.message || 'Order placement/payment failed. Please try again.');
     } finally {
       setLoading(false);
     }
-  }, [validateForm, createOrderData, redirectToSuccess]);
+  }, [validateForm, user, paymentMethod, createOrderData, redirectToSuccess, navigateToFailed]);
+
 
   // Redirect to login if not authenticated (double check even though PrivateRoute handles it)
   if (!user) {
@@ -503,17 +556,17 @@ function Checkout() {
                     <input
                       type="radio"
                       name="paymentMethod"
-                      value="PhonePe"
-                      checked={paymentMethod === 'PhonePe'}
-                      onChange={() => setPaymentMethod('PhonePe')}
+                      value="Razorpay"
+                      checked={paymentMethod === 'Razorpay'}
+                      onChange={() => setPaymentMethod('Razorpay')}
                       required
                     />
-                    PhonePe Gateway (UPI)
+                    Razorpay Gateway (UPI/Cards/Net Banking)
                     <img
-                      src="https://cdn.worldvectorlogo.com/logos/phonepe-1.svg"
-                      alt="PhonePe Logo" 
-                      width="38" 
-                      className="checkout__payment-logo" 
+                      src="https://cdn.worldvectorlogo.com/logos/razorpay.svg"
+                      alt="Razorpay Logo"
+                      width="38"
+                      className="checkout__payment-logo"
                     />
                   </label>
                 </div>
@@ -583,42 +636,6 @@ function Checkout() {
           </div>
         </div>
       </div>
-      {phonePeShow && (
-        <div className="checkout__phonepe-modal">
-          <div className="checkout__phonepe-content">
-            <div className="checkout__phonepe-header">
-              <img src="https://cdn.worldvectorlogo.com/logos/phonepe-1.svg" alt="PhonePe" className="checkout__phonepe-logo" />
-              <h3>Pay securely via PhonePe UPI</h3>
-            </div>
-            <div className="checkout__phonepe-qr">
-              {/* Demo QR: You can replace with your UPI QR code */}
-              <img src="https://api.qrserver.com/v1/create-qr-code/?data=upi%3Apay%3Aphonepe%40upi&size=180x180" alt="PhonePe UPI QR" />
-            </div>
-            <div className="checkout__phonepe-desc">
-              Scan this QR with PhonePe app to pay ₹{Math.max(0, total).toFixed(2)} to <b>NutriBites</b>.<br/>
-              <small>Demo only. (Integrate actual callback for production use.)</small>
-            </div>
-            <button className="checkout__button checkout__phonepe-button" onClick={handlePhonePePaid}>
-              I've Paid with PhonePe
-            </button>
-            <button className="checkout__empty-button checkout__phonepe-cancel-button" onClick={()=>setPhonePeShow(false)}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-      {paymentFailed && (
-        <div className="checkout__error-modal">
-          <div className="checkout__error-content">
-            <div className="checkout__error-icon">❌</div>
-            <div className="checkout__error-title">Payment Failed</div>
-            <div className="checkout__error-message">{failedMessage}</div>
-            <button className="checkout__button" onClick={()=>setPaymentFailed(false)}>
-              Try Again
-            </button>
-          </div>
-        </div>
-      )}
       <Footer />
     </div>
   );

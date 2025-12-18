@@ -6,7 +6,9 @@ import Footer from '../components/Footer.jsx';
 import SEO from '../SEO.jsx';
 import PriceDisplay from '../components/PriceDisplay.jsx';
 import RatingDisplay from '../components/RatingDisplay.jsx';
+import Loader from '../components/Loader.jsx';
 import { getProductPriceInfo } from '../utils/discount.js';
+import { formatDescription } from '../utils/descriptionFormatter.js';
 import { productsApi } from '../services/productsApi.js';
 import { reviewsApi } from '../services/reviewsApi.js';
 import '../styles/pages/product-detail.css';
@@ -22,7 +24,7 @@ function ProductDetail() {
   const [reviews, setReviews] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [reviewsPagination, setReviewsPagination] = useState(null);
-  const { addToCart } = useCart();
+  const { addToCart, addingToCart } = useCart();
 
   const fetchProduct = useCallback(async () => {
     if (!id) {
@@ -113,7 +115,7 @@ function ProductDetail() {
     [selectedWeight, product?.stock]
   );
 
-  const handleAddToCart = useCallback(() => {
+  const handleAddToCart = useCallback(async () => {
     if (!selectedWeight || !product) {
       alert('Please select a weight option');
       return;
@@ -121,7 +123,7 @@ function ProductDetail() {
     // Use discounted price if available
     const priceInfo = getProductPriceInfo(product, selectedWeight);
     const finalPrice = priceInfo && priceInfo.hasDiscount ? priceInfo.discounted : selectedWeight.price;
-    
+
     const productWithWeight = {
       ...product,
       price: finalPrice,
@@ -129,18 +131,21 @@ function ProductDetail() {
       selectedWeight: selectedWeight.weight,
       weightOption: selectedWeight
     };
-    addToCart(productWithWeight, qty);
-    navigate('/cart');
+
+    try {
+      await addToCart(productWithWeight, qty);
+      navigate('/cart');
+    } catch (error) {
+      // Error is already handled in CartContext, just don't navigate on error
+      console.error('Failed to add item to cart:', error);
+    }
   }, [selectedWeight, product, qty, addToCart, navigate]);
 
   // Early returns after all hooks
   if (loading) return (
     <div>
       <Navbar />
-      <div className="product-detail__loading">
-        <div className="product-detail__loading-icon">⏳</div>
-        <p className="product-detail__loading-text">Loading product...</p>
-      </div>
+      <Loader size="large" text="Loading product..." fullPage={false} />
     </div>
   );
   
@@ -253,7 +258,10 @@ function ProductDetail() {
             </div>
             <div className="product-detail__description">
               <h3 className="product-detail__description-title">Description</h3>
-              <p className="product-detail__description-text">{product.description}</p>
+              <div
+                className="product-detail__description-text"
+                dangerouslySetInnerHTML={{ __html: formatDescription(product.description) }}
+              />
             </div>
             
             {/* Weight Selection */}
@@ -277,9 +285,10 @@ function ProductDetail() {
                           hasDiscount={weightPriceInfo?.hasDiscount || false}
                           size="small"
                         />
-                        {weightOpt.stock <= 10 && weightOpt.stock > 0 && (
+                        {/* Stock information hidden as per requirements */}
+                        {/* {weightOpt.stock <= 10 && weightOpt.stock > 0 && (
                           <div className="product-detail__weight-option-stock">Only {weightOpt.stock} left!</div>
-                        )}
+                        )} */}
                       </button>
                     );
                   })}
@@ -298,17 +307,18 @@ function ProductDetail() {
                   onChange={e => setQty(Number(e.target.value))}
                   className="product-detail__quantity-input"
                 />
-                <span className="product-detail__stock">
+                {/* Stock information hidden as per requirements */}
+                {/* <span className="product-detail__stock">
                   {currentStock ? `${currentStock} in stock` : 'Available'}
-                </span>
+                </span> */}
               </div>
             </div>
             <button
               onClick={handleAddToCart}
               className="product-detail__button"
-              disabled={!selectedWeight && product.weightOptions?.length > 0}
+              disabled={(!selectedWeight && product.weightOptions?.length > 0) || addingToCart}
             >
-              🛒 Add to Cart
+              {addingToCart ? 'Adding to Cart...' : '🛒 Add to Cart'}
             </button>
             {selectedWeight && (
               <div className="product-detail__total-preview">

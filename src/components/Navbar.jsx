@@ -26,7 +26,7 @@ function Navbar() {
     <nav className="navbar">
       <Link to="/" className="navbar__logo">
         <span className="navbar__logo-icon">🍪</span>
-        <span className="navbar__logo-text">Dry Fruit Laddus | NutriBites</span>
+        <span className="navbar__logo-text">FHAMMS NutriBites</span>
       </Link>
 
       <button

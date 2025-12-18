@@ -116,6 +116,69 @@
   font-size: 16px;
 }
 
+/* Formatted Description Styles */
+.formatted-description p {
+  margin-bottom: 15px;
+}
+
+.formatted-description p:last-child {
+  margin-bottom: 0;
+}
+
+.description-benefits-section {
+  margin: 20px 0;
+}
+
+.description-benefits-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #2d5a2d;
+  margin-bottom: 10px;
+}
+
+.description-benefits-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.description-benefit-item {
+  position: relative;
+  padding: 8px 0 8px 30px;
+  color: #555;
+  line-height: 1.5;
+}
+
+.description-benefit-item:before {
+  content: '✔️';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  font-size: 16px;
+}
+
+.description-bullet-list {
+  list-style: none;
+  padding: 0;
+  margin: 15px 0;
+}
+
+.description-bullet-list li {
+  position: relative;
+  padding: 5px 0 5px 20px;
+  color: #555;
+  line-height: 1.5;
+}
+
+.description-bullet-list li:before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  top: 5px;
+  color: #667eea;
+  font-weight: bold;
+}
+
 .product-detail__weight-selection {
   margin-bottom: 30px;
 }

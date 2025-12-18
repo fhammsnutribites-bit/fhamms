@@ -16,12 +16,20 @@ import AdminOrders from './pages/admin/AdminOrders.jsx';
 import AdminUsers from './pages/admin/AdminUsers.jsx';
 import AdminPromoCodes from './pages/admin/AdminPromoCodes.jsx';
 import AdminDeliveryCharges from './pages/admin/AdminDeliveryCharges.jsx';
+import AdminNotifications from './pages/admin/AdminNotifications.jsx';
+import AdminCategories from './pages/admin/AdminCategories.jsx';
 import Account from './pages/Account.jsx';
+import FAQ from './pages/FAQ.jsx';
+import PrivacyPolicy from './pages/PrivacyPolicy.jsx';
+import TermsOfService from './pages/TermsOfService.jsx';
+import ShippingPolicy from './pages/ShippingPolicy.jsx';
+import PaymentCallback from './pages/PaymentCallback.jsx';
 import PrivateRoute from './components/PrivateRoute.jsx';
 import AdminRoute from './components/AdminRoute.jsx';
 import ScrollToTop from './components/ScrollToTop.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 import OrderSuccess from './pages/OrderSuccess.jsx';
+import OrderFailed from './pages/OrderFailed.jsx';
 
 function App() {
   return (
@@ -31,12 +39,18 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/products" element={<Products />} />
         <Route path="/products/:id" element={<ProductDetail />} />
+        <Route path="/faq" element={<FAQ />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms-of-service" element={<TermsOfService />} />
+        <Route path="/shipping-policy" element={<ShippingPolicy />} />
+        <Route path="/payment/callback" element={<PaymentCallback />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/admin/register" element={<AdminRegister />} />
         <Route path="/checkout" element={<PrivateRoute><Checkout /></PrivateRoute>} />
         <Route path="/order-success" element={<PrivateRoute><OrderSuccess /></PrivateRoute>} />
+        <Route path="/order-failed" element={<OrderFailed />} />
         <Route path="/orders" element={<PrivateRoute><Orders /></PrivateRoute>} />
         <Route path="/orders/:id" element={<PrivateRoute><OrderDetail /></PrivateRoute>} />
         <Route path="/account" element={<PrivateRoute><Account /></PrivateRoute>} />
@@ -47,6 +61,8 @@ function App() {
         <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
         <Route path="/admin/promo-codes" element={<AdminRoute><AdminPromoCodes /></AdminRoute>} />
         <Route path="/admin/delivery-charges" element={<AdminRoute><AdminDeliveryCharges /></AdminRoute>} />
+        <Route path="/admin/notifications" element={<AdminRoute><AdminNotifications /></AdminRoute>} />
+        <Route path="/admin/categories" element={<AdminRoute><AdminCategories /></AdminRoute>} />
       </Routes>
     </AuthProvider>
   );

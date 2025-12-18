@@ -59,11 +59,14 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password) => {
+    console.log('AuthContext: Starting login process');
     dispatch({ type: 'LOADING' });
     try {
       const data = await authApi.login(email, password);
+      console.log('AuthContext: Login API successful, user:', data.user.name);
       localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('token', data.token);
+      console.log('AuthContext: Dispatching LOGIN_SUCCESS');
       dispatch({ type: 'LOGIN_SUCCESS', payload: data.user });
       // Cart merge will be handled by CartContext useEffect
       return data.user;

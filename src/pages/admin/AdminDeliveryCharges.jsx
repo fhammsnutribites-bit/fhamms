@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
@@ -22,14 +23,20 @@ const DEFAULT_CHARGE = {
 
 function AdminDeliveryCharges() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [charges, setCharges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [editingLoading, setEditingLoading] = useState(false);
   const [formData, setFormData] = useState(DEFAULT_CHARGE);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [newTier, setNewTier] = useState({ minAmount: '', maxAmount: '', charge: '' });
+
+  const handleGoBack = () => {
+    navigate(-1);
+  };
 
   const fetchCharges = useCallback(async () => {
     setLoading(true);
@@ -140,9 +147,19 @@ function AdminDeliveryCharges() {
     }
   }
 
-  function handleEdit(charge) {
+  async function handleEdit(charge) {
+    setEditingLoading(true);
+
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Small delay to show loading state and allow scroll
+    await new Promise(resolve => setTimeout(resolve, 300));
+
     setEditing(charge._id);
     setShowForm(true);
+    setError('');
+    setSuccess('');
     setFormData({
       name: charge.name,
       description: charge.description || '',
@@ -157,6 +174,8 @@ function AdminDeliveryCharges() {
       isActive: charge.isActive,
       applicableLocations: charge.applicableLocations || []
     });
+
+    setEditingLoading(false);
   }
 
   const handleDelete = useCallback(async (id) => {
@@ -195,7 +214,15 @@ function AdminDeliveryCharges() {
       <Navbar />
       <div className="admin-delivery-charges__container">
         <header className="admin-delivery-charges__header">
-          <h1 className="admin-delivery-charges__title">Manage Delivery Charges</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <button
+              onClick={handleGoBack}
+              className="admin-delivery-charges__back-button"
+            >
+              ← Back
+            </button>
+            <h1 className="admin-delivery-charges__title" style={{ margin: 0 }}>Manage Delivery Charges</h1>
+          </div>
           <button
             onClick={() => {
               setShowForm(!showForm);
@@ -361,7 +388,7 @@ function AdminDeliveryCharges() {
                 step="0.01"
                 placeholder="0"
               />
-              <small>This rule applies only if order amount is >= this value</small>
+              <small>This rule applies only if order amount is &gt;= this value</small>
             </div>
 
             <div className="admin-delivery-charges__form-group">
@@ -447,8 +474,12 @@ function AdminDeliveryCharges() {
                         </span>
                       </td>
                       <td>
-                        <button onClick={() => handleEdit(charge)} className="admin-delivery-charges__edit-button">
-                          Edit
+                        <button
+                          onClick={() => handleEdit(charge)}
+                          className="admin-delivery-charges__edit-button"
+                          disabled={editingLoading}
+                        >
+                          {editingLoading ? 'Loading...' : 'Edit'}
                         </button>
                         <button onClick={() => toggleActive(charge._id)} className="admin-delivery-charges__toggle-button">
                           {charge.isActive ? 'Deactivate' : 'Activate'}

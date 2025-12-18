@@ -23,6 +23,27 @@
   color: #333;
 }
 
+.admin-delivery-charges__back-button {
+  background: #f8f9fa;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-delivery-charges__back-button:hover {
+  background: #e8f5e9;
+  border-color: #4caf50;
+  color: #2e7d32;
+}
+
 .admin-delivery-charges__add-button {
   padding: 10px 20px;
   background: #007bff;

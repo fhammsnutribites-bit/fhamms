@@ -1,8 +1,10 @@
+import React, { useEffect } from 'react';
 import { useCart } from '../context/CartContext.jsx';
 import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
 import PriceDisplay from '../components/PriceDisplay.jsx';
+import Loader from '../components/Loader.jsx';
 import '../styles/pages/cart.css';
 
 function Cart() {
@@ -16,7 +18,11 @@ function Cart() {
     loadingDeliveryCharge,
     total,
     error,
-    loading
+    loading,
+    updatingQuantity,
+    removingFromCart,
+    clearingCart,
+    isAnyLoading
   } = useCart();
   const navigate = useNavigate();
 
@@ -91,22 +97,22 @@ function Cart() {
                       <div className="cart__item-quantity">
                         <button
                           onClick={() => {
-                            updateQuantity(item.cartItemId, Math.max(1, item.qty - 1), item.selectedWeight);
+                            updateQuantity(item.cartItemId, Math.max(1, item.qty - 1));
                           }}
                           className="cart__item-quantity-button"
-                          disabled={loading}
+                          disabled={updatingQuantity}
                         >
-                          −
+                          {updatingQuantity ? '...' : '−'}
                         </button>
                         <span className="cart__item-quantity-value">{item.qty}</span>
                         <button
                           onClick={() => {
-                            updateQuantity(item.cartItemId, item.qty + 1, item.selectedWeight);
+                            updateQuantity(item.cartItemId, item.qty + 1);
                           }}
                           className="cart__item-quantity-button"
-                          disabled={loading}
+                          disabled={updatingQuantity}
                         >
-                          +
+                          {updatingQuantity ? '...' : '+'}
                         </button>
                       </div>
                       <button
@@ -114,9 +120,9 @@ function Cart() {
                           removeFromCart(item.cartItemId);
                         }}
                         className="cart__item-remove"
-                        disabled={loading}
+                        disabled={removingFromCart}
                       >
-                        {loading ? 'Removing...' : 'Remove'}
+                        {removingFromCart ? 'Removing...' : 'Remove'}
                       </button>
                     </div>
                   </div>
@@ -155,8 +161,9 @@ function Cart() {
               <button
                 onClick={clearCart}
                 className="cart__summary-button cart__summary-button--secondary"
+                disabled={clearingCart}
               >
-                Clear Cart
+                {clearingCart ? 'Clearing...' : 'Clear Cart'}
               </button>
             </div>
           </div>

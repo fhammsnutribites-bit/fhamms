@@ -60,7 +60,7 @@ function Register() {
           </button>
         </form>
         <div className="register__links">
-          <p style={{ marginBottom: '10px', color: '#666', fontSize: '14px' }}>
+          <p className="register__signin-text">
             Already have an account? <Link to="/login" className="register__link">Sign In</Link>
           </p>
           {/* <div className="register__divider">or</div>

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
@@ -19,13 +20,19 @@ const DEFAULT_PROMO = {
 
 function AdminPromoCodes() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [promoCodes, setPromoCodes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [editingLoading, setEditingLoading] = useState(false);
   const [formData, setFormData] = useState(DEFAULT_PROMO);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const handleGoBack = () => {
+    navigate(-1);
+  };
 
 
 
@@ -104,9 +111,19 @@ function AdminPromoCodes() {
     }
   }
 
-  function handleEdit(promoCode) {
+  async function handleEdit(promoCode) {
+    setEditingLoading(true);
+
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Small delay to show loading state and allow scroll
+    await new Promise(resolve => setTimeout(resolve, 300));
+
     setEditing(promoCode._id);
     setShowForm(true);
+    setError('');
+    setSuccess('');
     setFormData({
       code: promoCode.code,
       description: promoCode.description || '',
@@ -119,6 +136,8 @@ function AdminPromoCodes() {
       isActive: promoCode.isActive,
       usageLimit: promoCode.usageLimit || ''
     });
+
+    setEditingLoading(false);
   }
 
   const handleDelete = useCallback(async (id) => {
@@ -157,7 +176,38 @@ function AdminPromoCodes() {
       <Navbar />
       <div style={{ padding: '40px 20px', maxWidth: '1200px', margin: '0 auto', width: '100%', flex: 1 }}>
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-          <h1 style={{ fontSize: '28px', fontWeight: 'bold' }}>Manage Promo Codes</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <button
+              onClick={handleGoBack}
+              style={{
+                background: '#f8f9fa',
+                border: '2px solid #e0e0e0',
+                borderRadius: '8px',
+                padding: '10px 16px',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#666',
+                cursor: 'pointer',
+                transition: 'all 0.3s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+              onMouseOver={(e) => {
+                e.target.style.background = '#e8f5e9';
+                e.target.style.borderColor = '#4caf50';
+                e.target.style.color = '#2e7d32';
+              }}
+              onMouseOut={(e) => {
+                e.target.style.background = '#f8f9fa';
+                e.target.style.borderColor = '#e0e0e0';
+                e.target.style.color = '#666';
+              }}
+            >
+              ← Back
+            </button>
+            <h1 style={{ fontSize: '28px', fontWeight: 'bold', margin: 0 }}>Manage Promo Codes</h1>
+          </div>
           <button
             onClick={() => {
               setShowForm(!showForm);
@@ -428,17 +478,18 @@ function AdminPromoCodes() {
                           <div style={{ display: 'flex', gap: '8px' }}>
                             <button
                               onClick={() => handleEdit(pc)}
+                              disabled={editingLoading}
                               style={{
                                 padding: '6px 12px',
-                                background: '#007bff',
+                                background: editingLoading ? '#6c757d' : '#007bff',
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: '4px',
-                                cursor: 'pointer',
+                                cursor: editingLoading ? 'not-allowed' : 'pointer',
                                 fontSize: '13px'
                               }}
                             >
-                              Edit
+                              {editingLoading ? 'Loading...' : 'Edit'}
                             </button>
                             <button
                               onClick={() => toggleActive(pc._id, pc.isActive)}

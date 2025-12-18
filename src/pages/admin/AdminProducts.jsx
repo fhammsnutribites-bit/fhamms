@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
@@ -20,17 +21,25 @@ const DEFAULT_PRODUCT = {
   discountType: '',
   discountValue: '',
   isDiscountActive: false,
+  isBestseller: false,
 };
 
 function AdminProducts() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [editingProductName, setEditingProductName] = useState('');
+  const [editingLoading, setEditingLoading] = useState(false);
   const [formData, setFormData] = useState(DEFAULT_PRODUCT);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const handleGoBack = () => {
+    navigate(-1);
+  };
 
  
 
@@ -49,6 +58,16 @@ function AdminProducts() {
    useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+
+  // Auto-clear success message after 5 seconds
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        setSuccess('');
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
 
   function handleWeightChange(idx, field, value) {
     setFormData(fd => {
@@ -98,17 +117,26 @@ function AdminProducts() {
         })),
         discountType: formData.isDiscountActive && formData.discountType ? formData.discountType : null,
         discountValue: formData.isDiscountActive && formData.discountValue ? Number(formData.discountValue) : 0,
-        isDiscountActive: formData.isDiscountActive || false
+        isDiscountActive: formData.isDiscountActive || false,
+        isBestseller: formData.isBestseller || false
       };
       if (editing) {
         await productsApi.update(editing, submitData);
         setSuccess('Product updated!');
+        // Scroll to top after successful edit with multiple methods
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          document.body.scrollTop = 0;
+          document.documentElement.scrollTop = 0;
+        }, 100);
       } else {
         await productsApi.create(submitData);
         setSuccess('Product created!');
       }
+      // Close modal and reset form
       setShowForm(false);
       setEditing(null);
+      setEditingProductName('');
       setFormData(DEFAULT_PRODUCT);
       fetchProducts();
     } catch (err) {
@@ -116,9 +144,14 @@ function AdminProducts() {
     }
   }
 
-  function handleEdit(product) {
+  async function handleEdit(product) {
+    setEditingLoading(true);
+
     setEditing(product._id);
+    setEditingProductName(product.name);
     setShowForm(true);
+    setError('');
+    setSuccess('');
     setFormData({
       name: product.name,
       description: product.description,
@@ -128,6 +161,7 @@ function AdminProducts() {
       discountType: product.discountType || '',
       discountValue: product.discountValue || '',
       isDiscountActive: product.isDiscountActive || false,
+      isBestseller: product.isBestseller || false,
       weightOptions: [250,500,1000].map(w => {
         const existing = (product.weightOptions || []).find(opt => opt.weight === w);
         return existing ? {
@@ -140,6 +174,8 @@ function AdminProducts() {
         } : { weight: w, price: '', stock: '', discountType: '', discountValue: '', isDiscountActive: false };
       }),
     });
+
+    setEditingLoading(false);
   }
 
   const handleDelete = useCallback(async (id) => {
@@ -168,32 +204,68 @@ function AdminProducts() {
       <Navbar />
       <div className="admin-products__container">
         <header className="admin-products__header">
-          <h1 className="admin-products__title">Manage Nutri Laddus</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <button
+              onClick={handleGoBack}
+              className="admin-products__back-button"
+            >
+              ← Back
+            </button>
+            <h1 className="admin-products__title" style={{ margin: 0 }}>Manage Nutri Laddus</h1>
+          </div>
           <button
             className="admin-products__add-btn"
             onClick={() => {
-              setShowForm(!showForm);
+              setShowForm(true);
               setEditing(null);
+              setEditingProductName('');
               setError('');
               setSuccess('');
               setFormData(DEFAULT_PRODUCT);
             }}
           >
-            {showForm ? 'Cancel' : '+ Add New Laddu'}
+            + Add Product
           </button>
         </header>
 
+        {!!success && (
+          <div className="admin-products__page-success">
+            {success}
+          </div>
+        )}
+
+        {/* Modal for Add/Edit Product */}
         {showForm && (
-          <form className="admin-products__form" onSubmit={handleSubmit}>
-            <h2 className="admin-products__form-title">{editing ? 'Edit' : 'Add'} Laddu</h2>
-            {!!error && <div className="admin-products__form-error">{error}</div>}
-            {!!success && <div className="admin-products__form-success">{success}</div>}
+          <div className="admin-products__modal-overlay" onClick={() => setShowForm(false)}>
+            <div className="admin-products__modal" onClick={(e) => e.stopPropagation()}>
+              <div className="admin-products__modal-header">
+                <h2 className="admin-products__modal-title">
+                  {editing ? `Edit: ${editingProductName}` : 'Add Product'}
+                </h2>
+                <button
+                  type="button"
+                  className="admin-products__modal-close"
+                  onClick={() => setShowForm(false)}
+                >
+                  ×
+                </button>
+              </div>
+              <form className="admin-products__form" onSubmit={handleSubmit}>
+                {!!error && <div className="admin-products__form-error">{error}</div>}
             <div className="admin-products__form-fields">
               <label>Name*
                 <input value={formData.name} onChange={e => handleFormChange('name', e.target.value)} required className="admin-products__input" />
               </label>
               <label>Category*
                 <input value={formData.category} onChange={e => handleFormChange('category', e.target.value)} required className="admin-products__input" placeholder="e.g. Dry Fruit Laddus" />
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="checkbox"
+                  checked={formData.isBestseller}
+                  onChange={e => handleFormChange('isBestseller', e.target.checked)}
+                />
+                Mark as Bestseller
               </label>
               <label>Description
                 <textarea value={formData.description} onChange={e => handleFormChange('description', e.target.value)} rows={3} className="admin-products__input admin-products__input--textarea" />
@@ -306,11 +378,18 @@ function AdminProducts() {
                 ))}
               </div>
             </div>
-            <button type="submit" className="admin-products__save-btn">
-              {editing ? 'Update' : 'Create'} Laddu
-            </button>
-          </form>
-        )}
+              <div className="admin-products__modal-actions">
+                <button type="button" className="admin-products__cancel-btn" onClick={() => setShowForm(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="admin-products__save-btn">
+                  {editing ? 'Update Product' : 'Create Product'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
         <div className="admin-products__list">
           {loading ? (
@@ -346,7 +425,13 @@ function AdminProducts() {
                       </div>
                     </td>
                     <td>
-                      <button onClick={() => handleEdit(product)} className="admin-products__edit-btn">Edit</button>
+                      <button
+                        onClick={() => handleEdit(product)}
+                        className="admin-products__edit-btn"
+                        disabled={editingLoading}
+                      >
+                        {editingLoading ? 'Loading...' : 'Edit'}
+                      </button>
                       <button onClick={() => handleDelete(product._id)} className="admin-products__delete-btn">Delete</button>
                     </td>
                   </tr>

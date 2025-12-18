@@ -1,0 +1,186 @@
+/* Shipping Policy Page - BEM Methodology */
+.shipping-policy {
+  min-height: 100vh;
+  background: #ffffff;
+}
+
+.shipping-policy__container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 80px 20px 40px;
+}
+
+.shipping-policy__header {
+  text-align: center;
+  margin-bottom: 60px;
+  position: relative;
+}
+
+.shipping-policy__back-button {
+  position: absolute;
+  left: 0;
+  top: 0;
+  background: #f8f9fa;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shipping-policy__back-button:hover {
+  background: #e8f5e9;
+  border-color: #4caf50;
+  color: #2e7d32;
+}
+
+.shipping-policy__title {
+  font-size: 48px;
+  font-weight: bold;
+  color: #1b5e20;
+  margin-bottom: 10px;
+}
+
+.shipping-policy__last-updated {
+  font-size: 14px;
+  color: #666;
+  font-style: italic;
+}
+
+.shipping-policy__content {
+  margin-bottom: 40px;
+}
+
+.shipping-policy__section {
+  margin-bottom: 40px;
+  padding-bottom: 30px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.shipping-policy__section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.shipping-policy__section-title {
+  font-size: 28px;
+  font-weight: bold;
+  color: #2e7d32;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #4caf50;
+}
+
+.shipping-policy__section-content {
+  margin-bottom: 20px;
+}
+
+.shipping-policy__subsection-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #388e3c;
+  margin: 25px 0 15px 0;
+}
+
+.shipping-policy__text {
+  font-size: 16px;
+  line-height: 1.6;
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.shipping-policy__list {
+  margin: 15px 0 20px 20px;
+  padding: 0;
+}
+
+.shipping-policy__list-item {
+  font-size: 16px;
+  line-height: 1.6;
+  color: #333;
+  margin-bottom: 8px;
+  position: relative;
+  padding-left: 10px;
+}
+
+.shipping-policy__list-item::before {
+  content: "•";
+  color: #4caf50;
+  font-weight: bold;
+  position: absolute;
+  left: -15px;
+}
+
+.shipping-policy__contact {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 20px;
+}
+
+.shipping-policy__contact-item {
+  font-size: 16px;
+  line-height: 1.6;
+  color: #333;
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+
+.shipping-policy__contact-item:last-child {
+  margin-bottom: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .shipping-policy__container {
+    padding: 60px 15px 20px;
+  }
+
+  .shipping-policy__header {
+    margin-bottom: 40px;
+  }
+
+  .shipping-policy__back-button {
+    position: static;
+    margin-bottom: 20px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .shipping-policy__title {
+    font-size: 36px;
+  }
+
+  .shipping-policy__section-title {
+    font-size: 24px;
+  }
+
+  .shipping-policy__subsection-title {
+    font-size: 18px;
+  }
+
+  .shipping-policy__text {
+    font-size: 15px;
+  }
+
+  .shipping-policy__list-item {
+    font-size: 15px;
+  }
+}
+
+
+
+
+
+
+
+
+
+
+

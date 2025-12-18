@@ -8,6 +8,10 @@ const CartContext = createContext();
 const initialState = {
   cartItems: [],
   loading: false,
+  addingToCart: false,
+  updatingQuantity: false,
+  removingFromCart: false,
+  clearingCart: false,
   error: null,
   sessionId: null,
 };
@@ -27,44 +31,60 @@ function reducer(state, action) {
     case 'LOADING':
       return { ...state, loading: true, error: null };
     case 'LOAD_CART_SUCCESS':
-      return { 
-        ...state, 
-        cartItems: action.payload.items || [], 
-        loading: false, 
-        error: null 
+      return {
+        ...state,
+        cartItems: action.payload.items || [],
+        loading: false,
+        error: null
       };
     case 'LOAD_CART_ERROR':
       return { ...state, loading: false, error: action.payload };
+    case 'START_ADD_TO_CART':
+      return { ...state, addingToCart: true, error: null };
     case 'ADD_SUCCESS':
-      return { 
-        ...state, 
-        cartItems: action.payload.items || [], 
-        loading: false, 
-        error: null 
+      return {
+        ...state,
+        cartItems: action.payload.items || [],
+        addingToCart: false,
+        error: null
       };
+    case 'START_UPDATE_QUANTITY':
+      return { ...state, updatingQuantity: true, error: null };
     case 'UPDATE_SUCCESS':
-      return { 
-        ...state, 
-        cartItems: action.payload.items || [], 
-        loading: false, 
-        error: null 
+      return {
+        ...state,
+        cartItems: action.payload.items || [],
+        updatingQuantity: false,
+        error: null
       };
+    case 'START_REMOVE_FROM_CART':
+      return { ...state, removingFromCart: true, error: null };
     case 'REMOVE_SUCCESS':
-      return { 
-        ...state, 
-        cartItems: action.payload.items || [], 
-        loading: false, 
-        error: null 
+      return {
+        ...state,
+        cartItems: action.payload.items || [],
+        removingFromCart: false,
+        error: null
       };
+    case 'START_CLEAR_CART':
+      return { ...state, clearingCart: true, error: null };
     case 'CLEAR_SUCCESS':
-      return { 
-        ...state, 
-        cartItems: [], 
-        loading: false, 
-        error: null 
+      return {
+        ...state,
+        cartItems: [],
+        clearingCart: false,
+        error: null
       };
     case 'SET_ERROR':
-      return { ...state, loading: false, error: action.payload };
+      return {
+        ...state,
+        loading: false,
+        addingToCart: false,
+        updatingQuantity: false,
+        removingFromCart: false,
+        clearingCart: false,
+        error: action.payload
+      };
     case 'SET_SESSION_ID':
       return { ...state, sessionId: action.payload };
     default:
@@ -96,23 +116,20 @@ export const CartProvider = ({ children }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { user } = useAuth();
 
-  // Initialize session ID
-  useEffect(() => {
-    const sessionId = getSessionId();
-    dispatch({ type: 'SET_SESSION_ID', payload: sessionId });
-  }, []);
-
   // Load cart from API
   const loadCart = useCallback(async () => {
+    console.log('CartContext: loadCart called');
     dispatch({ type: 'LOADING' });
     try {
       const data = await cartApi.getCart();
       const transformedItems = transformCartItems(data.items);
+      console.log('CartContext: Cart loaded successfully, items:', transformedItems.length);
       dispatch({ type: 'LOAD_CART_SUCCESS', payload: { items: transformedItems } });
     } catch (err) {
       console.error('Load cart error:', err);
       // If cart doesn't exist, that's okay - start with empty cart
       if (err.response?.status === 404 || err.response?.status === 400) {
+        console.log('CartContext: Cart not found, setting empty cart');
         dispatch({ type: 'LOAD_CART_SUCCESS', payload: { items: [] } });
       } else if (err.code === 'ERR_NETWORK' || err.message === 'Network Error') {
         // Network error - server might not be running
@@ -124,54 +141,66 @@ export const CartProvider = ({ children }) => {
     }
   }, []);
 
-  // Merge guest cart with user cart (called on login)
+  // Initialize session ID on mount
+  useEffect(() => {
+    const sessionId = getSessionId();
+    dispatch({ type: 'SET_SESSION_ID', payload: sessionId });
+  }, []);
+
+
+  // Merge guest cart with user cart (called on login) - simplified
   const mergeGuestCart = useCallback(async () => {
+    console.log('CartContext: mergeGuestCart called');
     try {
       const sessionId = getSessionId();
-      const token = localStorage.getItem('token');
-      
-      if (!token || !sessionId) {
-        // No guest cart to merge, just load user cart
-        await loadCart();
-        return;
-      }
-
       const data = await cartApi.mergeCart(sessionId);
       const transformedItems = transformCartItems(data.items);
+      console.log('CartContext: Guest cart merged successfully, items:', transformedItems.length);
       dispatch({ type: 'LOAD_CART_SUCCESS', payload: { items: transformedItems } });
-      
+
       // Clear session ID after merge
       localStorage.removeItem('cartSessionId');
     } catch (err) {
       console.error('Merge cart error:', err);
-      // Don't show error to user, just load user cart
+      // On merge failure, just load the current user's cart
       await loadCart();
     }
   }, [loadCart]);
 
-  // Merge guest cart when user logs in or load cart when user changes
+
+  // Load cart whenever user state changes (login/logout) or on initial mount
   useEffect(() => {
-    const handleUserChange = async () => {
-      if (user && user.id) {
-        const sessionId = localStorage.getItem('cartSessionId');
-        if (sessionId) {
-          // User just logged in, merge guest cart
-          await mergeGuestCart();
-        } else {
-          // User already logged in, just load their cart
-          await loadCart();
-        }
-      } else if (!user) {
-        // User logged out, load guest cart
+    const loadCurrentUserCart = async () => {
+      console.log('CartContext: Loading cart for user:', user ? user.name : 'guest');
+
+      try {
         await loadCart();
+        console.log('CartContext: Cart loaded successfully');
+      } catch (error) {
+        console.error('CartContext: Failed to load cart:', error);
       }
     };
-    
-    handleUserChange();
-  }, [user, loadCart, mergeGuestCart]);
+
+    // Always load cart when user state changes
+    loadCurrentUserCart();
+  }, [user, loadCart]);
+
+  // Debug: Log cart state changes
+  useEffect(() => {
+    console.log('CartContext: Cart items changed, count:', state.cartItems.length, 'loading:', state.loading, 'error:', state.error);
+    if (state.cartItems.length > 0) {
+      console.log('CartContext: Current cart items:', state.cartItems.map(item => ({
+        name: item.name,
+        qty: item.qty,
+        price: item.price,
+        selectedWeight: item.selectedWeight
+      })));
+    }
+  }, [state.cartItems, state.loading, state.error]);
 
   const addToCart = async (product, qty = 1) => {
-    dispatch({ type: 'LOADING' });
+    console.log('CartContext: Adding to cart:', product.name, 'qty:', qty, 'current cart items:', state.cartItems.length);
+    dispatch({ type: 'START_ADD_TO_CART' });
     try {
       const payload = {
         productId: product._id,
@@ -181,13 +210,16 @@ export const CartProvider = ({ children }) => {
         weight: product.selectedWeight
       };
 
+      console.log('CartContext: API call payload:', payload);
       const data = await cartApi.addItem(payload);
       const transformedItems = transformCartItems(data.items);
+      console.log('CartContext: Item added successfully, total items:', transformedItems.length);
+      console.log('CartContext: Cart items after add:', transformedItems.map(item => ({ name: item.name, qty: item.qty })));
       dispatch({ type: 'ADD_SUCCESS', payload: { items: transformedItems } });
     } catch (err) {
       console.error('Add to cart error:', err);
       let errorMessage = 'Failed to add item to cart';
-      
+
       if (err.code === 'ERR_NETWORK' || err.message === 'Network Error') {
         errorMessage = 'Cannot connect to server. Please check your connection.';
       } else if (err.response?.data?.message) {
@@ -195,13 +227,13 @@ export const CartProvider = ({ children }) => {
       } else if (err.message) {
         errorMessage = err.message;
       }
-      
+
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
     }
   };
 
   const removeFromCart = async (itemId) => {
-    dispatch({ type: 'LOADING' });
+    dispatch({ type: 'START_REMOVE_FROM_CART' });
     try {
       const data = await cartApi.removeItem(itemId);
       const transformedItems = transformCartItems(data.items);
@@ -212,8 +244,8 @@ export const CartProvider = ({ children }) => {
     }
   };
 
-  const updateQuantity = async (itemId, qty, selectedWeight) => {
-    dispatch({ type: 'LOADING' });
+  const updateQuantity = async (itemId, qty) => {
+    dispatch({ type: 'START_UPDATE_QUANTITY' });
     try {
       const data = await cartApi.updateItem(itemId, Number(qty));
       const transformedItems = transformCartItems(data.items);
@@ -225,7 +257,7 @@ export const CartProvider = ({ children }) => {
   };
 
   const clearCart = async () => {
-    dispatch({ type: 'LOADING' });
+    dispatch({ type: 'START_CLEAR_CART' });
     try {
       await cartApi.clearCart();
       dispatch({ type: 'CLEAR_SUCCESS', payload: { items: [] } });
@@ -276,18 +308,19 @@ export const CartProvider = ({ children }) => {
   );
 
   return (
-    <CartContext.Provider value={{ 
-      ...state, 
-      addToCart, 
-      removeFromCart, 
-      updateQuantity, 
+    <CartContext.Provider value={{
+      ...state,
+      addToCart,
+      removeFromCart,
+      updateQuantity,
       clearCart,
       loadCart,
       mergeGuestCart,
       subtotal,
       deliveryCharge,
       loadingDeliveryCharge,
-      total
+      total,
+      isAnyLoading: state.loading || state.addingToCart || state.updatingQuantity || state.removingFromCart || state.clearingCart
     }}>
       {children}
     </CartContext.Provider>

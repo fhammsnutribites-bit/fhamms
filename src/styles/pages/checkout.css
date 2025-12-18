@@ -222,51 +222,6 @@
   padding: 8px 0 8px 2px;
 }
 
-/* PhonePe Modal */
-.checkout__phonepe-modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.38);
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.checkout__phonepe-content {
-  background: #fff;
-  border-radius: 20px;
-  padding: 38px 26px 24px 26px;
-  box-shadow: 0 10px 40px rgba(102, 126, 234, 0.08);
-  width: min(92vw, 340px);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.checkout__phonepe-header {
-  text-align: center;
-  margin-bottom: 18px;
-}
-.checkout__phonepe-header h3 {
-  font-size: 20px;
-  color: #3f1477;
-  margin-bottom: 3px;
-}
-.checkout__phonepe-qr {
-  margin-bottom: 16px;
-}
-.checkout__phonepe-qr img {
-  border-radius: 12px;
-  border: 2.5px solid #e5e5fa;
- width: 180px; height: 180px;
-  margin-bottom: 4px;
-}
-.checkout__phonepe-desc {
-  font-size: 15px;
-  color: #555;
-  margin-bottom: 8px;
-  text-align: center;
-  line-height: 1.6;
-}
 
 /* Responsive Styles */
 @media (max-width: 768px) {
@@ -315,10 +270,6 @@
   }
 }
 
-@media (max-width: 520px) {
-  .checkout__phonepe-content { width: 99vw; padding: 11vw 3vw 8vw 3vw; }
-  .checkout__phonepe-header h3 { font-size: 16px; }
-}
 
 /* Additional styles for inline CSS migration */
 .checkout__label-required {
@@ -356,18 +307,6 @@
   margin-top: 4px;
 }
 
-.checkout__phonepe-logo {
-  height: 44px;
-  margin-bottom: 8px;
-}
-
-.checkout__phonepe-button {
-  margin-top: 16px;
-}
-
-.checkout__phonepe-cancel-button {
-  margin-top: 8px;
-}
 
 .checkout__summary-row-border {
   border-top: 1px solid #e0e0e0;

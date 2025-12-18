@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
+import { getDisplayOrderNumber } from '../utils/orderUtils.js';
 import '../styles/pages/order-success.css';
 
 function OrderSuccess() {
@@ -15,7 +16,7 @@ function OrderSuccess() {
         {order ? (
           <>
             <div className="order-success__summary">
-              <div><b>Order ID:</b> {order._id.slice(-8).toUpperCase()}</div>
+              <div><b>{getDisplayOrderNumber(order._id)}:</b></div>
               <div><b>Total:</b> ₹{order.totalPrice}</div>
               <div><b>Payment Method:</b> {order.paymentMethod}</div>
             </div>

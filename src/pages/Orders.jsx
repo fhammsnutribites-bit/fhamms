@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
+import Loader from '../components/Loader.jsx';
 import { ordersApi } from '../services/ordersApi.js';
+import { getDisplayOrderNumber, formatOrderDate } from '../utils/orderUtils.js';
 import '../styles/pages/orders.css';
 
 function Orders() {
@@ -39,10 +41,7 @@ function Orders() {
     return (
       <div className="orders">
         <Navbar />
-        <div className="orders__loading">
-          <div className="orders__loading-icon">⏳</div>
-          <p className="orders__loading-text">Loading...</p>
-        </div>
+        <Loader size="large" text="Loading..." fullPage={false} />
         <Footer />
       </div>
     );
@@ -65,10 +64,7 @@ function Orders() {
     return (
       <div className="orders">
         <Navbar />
-        <div className="orders__loading">
-          <div className="orders__loading-icon">⏳</div>
-          <p className="orders__loading-text">Loading your orders...</p>
-        </div>
+        <Loader size="large" text="Loading your orders..." fullPage={false} />
         <Footer />
       </div>
     );
@@ -108,22 +104,18 @@ function Orders() {
                 <div className="orders__card-header">
                   <div className="orders__card-info">
                     <div className="orders__card-number">
-                      Order #{order._id.slice(-8).toUpperCase()}
+                      {getDisplayOrderNumber(order._id)}
                     </div>
                     <div className="orders__card-date">
                       <span>📅</span>
-                      <span>{new Date(order.createdAt).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}</span>
+                      <span>{formatOrderDate(order.createdAt)}</span>
                     </div>
                   </div>
                   <div className="orders__card-total-section">
                     <div>
                       <div className="orders__card-total-label">Total</div>
                       <div className="orders__card-total-amount">
-                        ${order.totalPrice?.toFixed(2) || '0.00'}
+                       ₹{order.totalPrice?.toFixed(2) || '0.00'}
                       </div>
                     </div>
                     <div className={`orders__card-status ${order.isDelivered ? 'orders__card-status--delivered' : 'orders__card-status--processing'}`}>
@@ -152,11 +144,11 @@ function Orders() {
                             {item.product?.name || 'Product'}
                           </div>
                           <div className="orders__card-item-details">
-                            Quantity: {item.qty} × ${item.price?.toFixed(2) || '0.00'}
+                            Quantity: {item.qty} × ₹{item.price?.toFixed(2) || '0.00'}
                           </div>
                         </div>
                         <div className="orders__card-item-price">
-                          ${((item.qty || 0) * (item.price || 0)).toFixed(2)}
+                          ₹{((item.qty || 0) * (item.price || 0)).toFixed(2)}
                         </div>
                       </div>
                     ))}

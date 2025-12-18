@@ -50,7 +50,7 @@ function Login() {
           </button>
         </form>
         <div className="login__links">
-          <p style={{ marginBottom: '10px', color: '#666', fontSize: '14px' }}>
+          <p className="login__signup-text">
             Don't have an account? <Link to="/register" className="login__link">Sign Up</Link>
           </p>
           {/* <div className="login__divider">or</div>

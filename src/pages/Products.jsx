@@ -1,23 +1,28 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useCart } from '../context/CartContext.jsx';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
+import AddToCartModal from '../components/AddToCartModal.jsx';
 import SEO from '../SEO.jsx';
 import PriceDisplay from '../components/PriceDisplay.jsx';
 import RatingDisplay from '../components/RatingDisplay.jsx';
-import { getProductPriceInfo } from '../utils/discount.js';
+import Loader from '../components/Loader.jsx';
+import { getProductPriceInfo, getBestWeightOption } from '../utils/discount.js';
 import { productsApi } from '../services/productsApi.js';
 import '../styles/pages/products.css';
 
 function Products() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
-  const { addToCart } = useCart();
+  const [showCartModal, setShowCartModal] = useState(false);
+  const [lastAddedProduct, setLastAddedProduct] = useState(null);
+  const { addToCart, addingToCart } = useCart();
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -36,45 +41,46 @@ function Products() {
     fetchProducts();
   }, [fetchProducts]);
 
+  // Set category from URL parameter on mount
+  useEffect(() => {
+    const categoryParam = searchParams.get('category');
+    if (categoryParam) {
+      setSelectedCategory(decodeURIComponent(categoryParam));
+    }
+  }, [searchParams]);
+
   const categories = useMemo(() => {
     return ['All', ...new Set(products.map(p => p.category).filter(Boolean))];
   }, [products]);
 
   const filteredProducts = useMemo(() => {
-    return products.filter(p => {
+    const filtered = products.filter(p => {
       const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory;
       const matchesSearch =
         p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (p.category && p.category.toLowerCase().includes(searchTerm.toLowerCase()));
       return matchesCategory && matchesSearch;
     });
+
+    // Sort bestsellers first
+    return filtered.sort((a, b) => {
+      if (a.isBestseller && !b.isBestseller) return -1;
+      if (!a.isBestseller && b.isBestseller) return 1;
+      return 0;
+    });
   }, [products, selectedCategory, searchTerm]);
 
   const handleAddToCart = useCallback((product, event) => {
     event.preventDefault();
     event.stopPropagation();
-
-    // Calculate proper price and original price for discount detection
-    const priceInfo = getProductPriceInfo(product);
-    const finalPrice = priceInfo ? (priceInfo.hasDiscount ? priceInfo.discounted : priceInfo.original) : product.price;
-
-    const productWithPrice = {
-      ...product,
-      price: finalPrice,
-      originalPrice: priceInfo ? priceInfo.original : product.price
-    };
-
-    addToCart(productWithPrice, 1);
-    navigate('/cart');
-  }, [addToCart, navigate]);
+    setLastAddedProduct(product);
+    setShowCartModal(true);
+  }, []);
 
   if (loading) return (
     <div>
       <Navbar />
-      <div className="products__loading">
-        <div className="products__loading-icon">⏳</div>
-        <p className="products__loading-text">Loading products...</p>
-      </div>
+      <Loader size="large" text="Loading products..." fullPage={false} />
     </div>
   );
   
@@ -161,9 +167,14 @@ function Products() {
         <div className="products__grid">
           {filteredProducts.map(prod => (
             <div key={prod._id} className="products__card">
+              {prod.isBestseller && (
+                <div className="products__card-badge">
+                  BESTSELLER
+                </div>
+              )}
               <Link to={`/products/${prod._id}`} className="products__card-link">
                 {prod.image && (
-                  <div className="products__card-image" style={{ backgroundImage: `url(${prod.image})` }} />
+                  <div className="products__card-image" style={{ '--product-image-url': `url(${prod.image})` }} />
                 )}
                 <div className="products__card-content">
                   {prod.category && (
@@ -176,11 +187,12 @@ function Products() {
                     size="small"
                   />
                   <PriceDisplay
-                    originalPrice={getProductPriceInfo(prod)?.original || prod.price || prod.basePrice}
+                    originalPrice={getProductPriceInfo(prod)?.original || 0}
                     discountedPrice={getProductPriceInfo(prod)?.discounted}
                     discountInfo={getProductPriceInfo(prod)?.discountInfo}
                     hasDiscount={getProductPriceInfo(prod)?.hasDiscount || false}
                     size="medium"
+                    weight={getBestWeightOption(prod)?.weight}
                   />
                 </div>
               </Link>
@@ -188,8 +200,9 @@ function Products() {
                 <button
                   onClick={(e) => handleAddToCart(prod, e)}
                   className="products__card-button"
+                  disabled={addingToCart}
                 >
-                  🛒 Add to Cart
+                  {addingToCart ? 'Adding...' : '🛒 Add to Cart'}
                 </button>
               </div>
             </div>
@@ -202,6 +215,13 @@ function Products() {
         )}
       </div>
       <Footer />
+
+      <AddToCartModal
+        isOpen={showCartModal}
+        onClose={() => setShowCartModal(false)}
+        product={lastAddedProduct}
+        onAddToCart={addToCart}
+      />
     </div>
   );
 }

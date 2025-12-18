@@ -103,7 +103,7 @@ function ReviewsSection() {
 
   if (loading) {
     return (
-      <section className="reviews-section">
+      <section id="reviews" className="reviews-section">
         <div className="reviews-section__container">
           <h2 className="reviews-section__title">What Our Customers Say</h2>
           <div className="reviews-section__loading">
@@ -125,7 +125,7 @@ function ReviewsSection() {
   }
 
   return (
-    <section className="reviews-section">
+    <section id="reviews" className="reviews-section">
       <div className="reviews-section__container">
         <h2 className="reviews-section__title">What Our Customers Say</h2>
         <div className="reviews-section__scroll-container">

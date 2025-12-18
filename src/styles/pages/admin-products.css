@@ -16,13 +16,34 @@
 .admin-products__header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: flex-start;
   padding: 35px 0 0;
 }
 .admin-products__title {
   font-size: 36px;
   font-weight: bold;
   color: #1b5e20;
+}
+
+.admin-products__back-button {
+  background: #f8f9fa;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-products__back-button:hover {
+  background: #e8f5e9;
+  border-color: #4caf50;
+  color: #2e7d32;
 }
 .admin-products__add-btn {
   background: #4caf50;
@@ -40,14 +61,134 @@
   background: #388e3c;
 }
 
+.admin-products__page-success {
+  background: #e8f5e9;
+  color: #388e3c;
+  padding: 16px 24px;
+  border-radius: 8px;
+  margin: 20px 0;
+  font-weight: 600;
+  font-size: 16px;
+  text-align: center;
+  border: 1px solid #c8e6c9;
+  box-shadow: 0 2px 8px rgba(56, 142, 60, 0.1);
+}
+
+/* Modal Styles */
+.admin-products__modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.admin-products__modal {
+  background: white;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.admin-products__modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 30px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #f8f9fa;
+  border-radius: 16px 16px 0 0;
+}
+
+.admin-products__modal-title {
+  font-size: 24px;
+  font-weight: bold;
+  color: #1b5e20;
+  margin: 0;
+}
+
+.admin-products__modal-close {
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.3s;
+}
+
+.admin-products__modal-close:hover {
+  background: #e0e0e0;
+  color: #333;
+}
+
+.admin-products__modal-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: flex-end;
+  padding: 24px 30px;
+  border-top: 1px solid #e0e0e0;
+  background: #f8f9fa;
+  border-radius: 0 0 16px 16px;
+}
+
+.admin-products__cancel-btn {
+  background: white;
+  color: #666;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  min-width: 100px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.admin-products__cancel-btn:hover {
+  background: #f1f1f1;
+  border-color: #ccc;
+  color: #333;
+}
+
+.admin-products__save-btn {
+  background: #4caf50;
+  color: white;
+  border: 2px solid #4caf50;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  min-width: 120px;
+}
+
+.admin-products__save-btn:hover {
+  background: #388e3c;
+  border-color: #388e3c;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
 .admin-products__form {
   padding: 30px;
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
-  margin-bottom: 30px;
-  background: #fafafa;
-  margin-top: 35px;
-  box-shadow: 0 2px 12px rgba(76,175,80,0.06);
+  max-height: calc(90vh - 140px); /* Account for header and footer */
+  overflow-y: auto;
 }
 .admin-products__form-title {
   margin-bottom: 18px;
@@ -259,6 +400,41 @@
     font-size: 13px;
   }
 }
+/* Modal Responsive */
+@media (max-width: 768px) {
+  .admin-products__modal-overlay {
+    padding: 10px;
+  }
+
+  .admin-products__modal {
+    max-height: 95vh;
+  }
+
+  .admin-products__modal-header {
+    padding: 20px;
+  }
+
+  .admin-products__modal-title {
+    font-size: 20px;
+  }
+
+  .admin-products__modal-actions {
+    padding: 20px;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .admin-products__cancel-btn,
+  .admin-products__save-btn {
+    width: 100%;
+    min-width: auto;
+  }
+
+  .admin-products__form {
+    padding: 20px;
+  }
+}
+
 @media (max-width: 450px) {
   .admin-products__table th, .admin-products__table td { padding: 6px; }
   .admin-products__image-thumb { width: 34px; height: 34px; }

@@ -1,12 +1,18 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import Navbar from '../../components/Navbar.jsx';
 import { usersApi } from '../../services/usersApi.js';
 
 function AdminUsers() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const handleGoBack = () => {
+    navigate(-1);
+  };
 
   const fetchUsers = useCallback(async () => {
     if (!user?.isAdmin) {
@@ -56,7 +62,38 @@ function AdminUsers() {
     <div>
       <Navbar />
       <div style={{maxWidth:1200,margin:'30px auto',padding:20}}>
-        <h2>Manage Users</h2>
+        <div style={{display:'flex', alignItems:'center', gap:'20px', marginBottom:'20px'}}>
+          <button
+            onClick={handleGoBack}
+            style={{
+              background: '#f8f9fa',
+              border: '2px solid #e0e0e0',
+              borderRadius: '8px',
+              padding: '10px 16px',
+              fontSize: '14px',
+              fontWeight: '600',
+              color: '#666',
+              cursor: 'pointer',
+              transition: 'all 0.3s',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+            onMouseOver={(e) => {
+              e.target.style.background = '#e8f5e9';
+              e.target.style.borderColor = '#4caf50';
+              e.target.style.color = '#2e7d32';
+            }}
+            onMouseOut={(e) => {
+              e.target.style.background = '#f8f9fa';
+              e.target.style.borderColor = '#e0e0e0';
+              e.target.style.color = '#666';
+            }}
+          >
+            ← Back
+          </button>
+          <h2 style={{margin: 0}}>Manage Users</h2>
+        </div>
         {loading ? (
           <p>Loading...</p>
         ) : (
