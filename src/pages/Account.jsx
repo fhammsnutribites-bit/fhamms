@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
+import Loader from '../components/Loader.jsx';
 import { usersApi } from '../services/usersApi.js';
 import { addressApi } from '../services/addressApi.js';
 
@@ -9,7 +10,7 @@ function Account() {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(true);
-  const [userData, setUserData] = useState(null);
+  const [userData, setUserData] = useState({});
   
   // Profile form
   const [profileForm, setProfileForm] = useState({ name: '', email: '', password: '', confirmPassword: '' });
@@ -53,14 +54,16 @@ function Account() {
   const fetchUserData = useCallback(async () => {
     if (!user) {
       setLoading(false);
+      setUserData({});
       return;
     }
     try {
       const data = await usersApi.getProfile();
-      setUserData(data);
-      setProfileForm({ name: data.name || '', email: data.email || '', password: '', confirmPassword: '' });
+      setUserData(data && typeof data === 'object' ? data : {});
+      setProfileForm({ name: data?.name || '', email: data?.email || '', password: '', confirmPassword: '' });
     } catch (err) {
       console.error('Failed to load user data:', err);
+      setUserData({});
     } finally {
       setLoading(false);
     }
@@ -273,16 +276,7 @@ function Account() {
   }
 
   if (loading) {
-    return (
-      <div style={{ minHeight: '100vh', background: '#f8f9fa' }}>
-        <Navbar />
-        <div style={{ textAlign: 'center', padding: '100px 20px' }}>
-          <div style={{ fontSize: '48px', marginBottom: '20px' }}>⏳</div>
-          <p style={{ fontSize: '20px', color: '#666' }}>Loading account...</p>
-        </div>
-        <Footer />
-      </div>
-    );
+    return <Loader fullPage />;
   }
 
   return (
@@ -812,10 +806,37 @@ function Account() {
                             borderRadius: '20px',
                             fontSize: '12px',
                             fontWeight: '600',
-                            marginBottom: '10px'
+                            marginBottom: '10px',
+                            marginRight: '10px'
                           }}>
                             Default
                           </span>
+                        )}
+                        {!addr.isDefault && (
+                          <button
+                            style={{
+                              padding: '4px 12px',
+                              background: '#e8f5e9',
+                              color: '#388e3c',
+                              border: '1px solid #4caf50',
+                              borderRadius: '20px',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              marginBottom: '10px',
+                              marginRight: '10px',
+                              cursor: 'pointer'
+                            }}
+                            onClick={async () => {
+                              try {
+                                await usersApi.setDefaultAddress(idx);
+                                await fetchUserData();
+                              } catch (err) {
+                                alert('Failed to set default address');
+                              }
+                            }}
+                          >
+                            Set as Default
+                          </button>
                         )}
                         {addr.label && (
                           <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px', color: '#333' }}>

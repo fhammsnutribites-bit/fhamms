@@ -16,7 +16,7 @@ function PaymentCallback() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState('processing');
   const [message, setMessage] = useState('Verifying payment...');
-  const [orderId, setOrderId] = useState(null);
+    const [orderId, setOrderId] = useState(null);
 
   useEffect(() => {
     const verifyPayment = async () => {
@@ -24,21 +24,17 @@ function PaymentCallback() {
         if (!merchantTransactionId) {
           setStatus('error');
           setMessage('Invalid payment reference');
+          setLoading(false);
           return;
         }
-
         // Get payment details from URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const orderId = urlParams.get('order_id');
         const paymentId = urlParams.get('payment_id');
-
         if (orderId) {
-          // Find the order directly by ID
           try {
             const order = await ordersApi.getById(orderId);
-            setOrderId(order._id);
-
-            // Check if payment was successful
+            setOrderId(order?._id || null);
             if (paymentId && order.isPaid && order.paymentStatus === 'success') {
               setStatus('success');
               setMessage('Payment successful! Redirecting to order details...');
@@ -54,27 +50,27 @@ function PaymentCallback() {
             } else {
               setStatus('pending');
               setMessage('Payment is being processed. Please wait...');
-              // Check again after 5 seconds
               setTimeout(() => verifyPayment(), 5000);
             }
           } catch (orderError) {
             console.error('Error fetching order:', orderError);
             setStatus('error');
             setMessage('Order not found. Please contact support.');
+            setOrderId(null);
           }
         } else {
           setStatus('error');
-          setMessage('Invalid payment reference. Please contact support.');
+          setMessage('Order ID missing in payment callback.');
+          setOrderId(null);
         }
-      } catch (error) {
-        console.error('Payment verification error:', error);
+      } catch (err) {
         setStatus('error');
-        setMessage('Error verifying payment. Please contact support.');
+        setMessage('Payment verification failed. Please contact support.');
+        setOrderId(null);
       } finally {
         setLoading(false);
       }
     };
-
     verifyPayment();
   }, [merchantTransactionId, navigate]);
 

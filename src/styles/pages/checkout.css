@@ -45,6 +45,22 @@
   gap: 40px;
 }
 
+@media (max-width: 900px) {
+  .checkout__content {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+}
+
+@media (max-width: 900px) {
+  .checkout__content > .checkout__section:first-child {
+    order: 2;
+  }
+  .checkout__content > .checkout__section:last-child {
+    order: 1;
+  }
+}
+
 .checkout__section {
   background: white;
   border-radius: 16px;

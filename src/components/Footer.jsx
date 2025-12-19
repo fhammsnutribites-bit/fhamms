@@ -9,8 +9,12 @@ function Footer() {
           {/* Company Info */}
           <div>
             <div className="footer__company-info">
-              <span className="footer__logo-emoji">🍪</span>
-              <span className="footer__company-name">NutriBites Laddus</span>
+              <span className="footer__logo-emoji">
+                <span className="navbar__logo-icon">
+                  <img src="https://iili.io/f03PSlj.md.png" alt="FHAMMS Nutri Bites Logo" />
+                </span>
+              </span>
+              <span className="footer__company-name">FHAMMS Nutri Bites</span>
             </div>
             <p className="footer__text">
               Your trusted destination for premium, handcrafted laddus. We deliver authentic taste and nutrition straight to your doorstep with guaranteed freshness and satisfaction.
@@ -28,15 +32,11 @@ function Footer() {
           <div>
             <h3 className="footer__section-title">Quick Links</h3>
             <div className="footer__links-container">
-              {['Home', 'Shop All', 'About Us', 'Contact', 'Blog'].map(link => (
-                <Link
-                  key={link}
-                  to={link === 'Home' ? '/' : '#'}
-                  className="footer__link"
-                >
-                  {link}
-                </Link>
-              ))}
+              <Link to="/" className="footer__link">Home</Link>
+              <Link to="/products" className="footer__link">Shop All</Link>
+              <Link to="/about" className="footer__link">About Us</Link>
+              <Link to="/contact" className="footer__link">Contact</Link>
+              <Link to="/blog" className="footer__link">Blog</Link>
             </div>
           </div>
 
@@ -87,14 +87,6 @@ function Footer() {
         {/* Bottom Bar */}
         <div className="footer__bottom">
           <div>© 2025 FHAMMS Nutri Bites. All rights reserved.</div>
-          <div className="footer__payment-methods">
-            <span>Payment Methods:</span>
-            <div className="footer__payment-icons">
-              {['💳', '💳', '💳', '💳'].map((icon, idx) => (
-                <span key={idx}>{icon}</span>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     </footer>

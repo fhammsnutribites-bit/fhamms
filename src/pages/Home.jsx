@@ -12,6 +12,7 @@ import { categoriesApi } from '../services/categoriesApi.js';
 import { notificationsApi } from '../services/notificationsApi.js';
 import { statisticsApi } from '../services/statisticsApi.js';
 import { useCart } from '../context/CartContext.jsx';
+import Loader from '../components/Loader.jsx';
 import '../styles/pages/home.css';
 import '../styles/components/reviews-section.css';
 
@@ -30,12 +31,24 @@ function Home() {
     averageRating: 4.9,
     totalOrders: 15000
   });
-  const { addToCart } = useCart();
+  const { addToCart, isAnyLoading } = useCart();
+  const [loading, setLoading] = useState(false);
+
+  // Loader logic at the top level - only show for page data loading, not cart operations
+  if (loading) {
+    return <Loader fullPage />;
+  }
+
+  // Defensive: Always ensure arrays/objects for UI
+  const safeProducts = Array.isArray(products) ? products : [];
+  const safeCategories = Array.isArray(categories) ? categories : [];
+  const safeNotifications = Array.isArray(notifications) ? notifications : [];
+  const safeStatistics = statistics && typeof statistics === 'object' ? statistics : { totalCustomers: 0, totalProducts: 0, averageRating: 0, totalOrders: 0 };
 
   const categoryIcons = useMemo(() => ['🍪', '🥜', '🌰', '🍯', '🌾', '🥥'], []);
 
   // Fallback notification messages (used if API fails or no notifications exist)
-  const fallbackMessages = useMemo(() => [
+  const fallbackMessages = [
     {
       text: "Free delivery on orders above ₹500 • Same day delivery in Delhi NCR • 100% authentic dry fruit laddus",
       icon: "🚚",
@@ -56,64 +69,87 @@ function Home() {
       icon: "💎",
       accentIcon: "🏅"
     }
-  ], []);
+  ];
 
-  // Use API notifications or fallback to default messages
-  const notificationMessages = useMemo(() => {
-    return notifications.length > 0 ? notifications : fallbackMessages;
-  }, [notifications, fallbackMessages]);
-
-  const fetchProducts = useCallback(async () => {
-    try {
-      const data = await productsApi.getAll();
-      setProducts(data);
-    } catch (err) {
-      console.error('Failed to load products:', err);
+  useEffect(() => {
+    let isMounted = true;
+    
+    // Set loading to false immediately to show the page
+    setLoading(false);
+    
+    // Load data in background
+    async function fetchAllData() {
+      try {
+        await Promise.allSettled([
+          fetchCategories(),
+          fetchNotifications(),
+          fetchProducts(),
+          fetchStatistics()
+        ]);
+      } catch (err) {
+        console.log('Home: Some data failed to load, but page will show with fallbacks');
+      }
     }
+    
+    fetchAllData();
+    
+    return () => { 
+      isMounted = false; 
+    };
   }, []);
 
   const fetchCategories = useCallback(async () => {
     try {
       const data = await categoriesApi.getAll();
-      // Expect categories from API to be objects: { _id, name, image }
+      console.log('Categories API response:', data);
       setCategories(Array.isArray(data) ? data.slice(0, 6) : []);
     } catch (err) {
       console.error('Failed to load categories:', err);
+      setCategories([]);
     }
   }, []);
 
   const fetchNotifications = useCallback(async () => {
     try {
       const data = await notificationsApi.getActive();
-      setNotifications(data);
+      console.log('Notifications API response:', data);
+      setNotifications(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to load notifications:', err);
-      // Keep fallback messages if API fails
+      setNotifications([]);
+    }
+  }, []);
+
+  const fetchProducts = useCallback(async () => {
+    try {
+      const data = await productsApi.getAll();
+      console.log('Products API response:', data);
+      setProducts(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Failed to load products:', err);
+      setProducts([]);
     }
   }, []);
 
   const fetchStatistics = useCallback(async () => {
     try {
       const data = await statisticsApi.getDashboardStats();
-      setStatistics(data);
+      console.log('Statistics API response:', data);
+      setStatistics(data && typeof data === 'object' ? data : { totalCustomers: 0, totalProducts: 0, averageRating: 0, totalOrders: 0 });
     } catch (err) {
       console.error('Failed to load statistics:', err);
-      // Keep fallback values if API fails
+      setStatistics({ totalCustomers: 0, totalProducts: 0, averageRating: 0, totalOrders: 0 });
     }
   }, []);
 
-  useEffect(() => {
-    fetchProducts();
-    fetchNotifications();
-    fetchStatistics();
-    fetchCategories();
-  }, [fetchProducts, fetchNotifications, fetchStatistics, fetchCategories]);
+  // Notification messages fallback if API fails
+  const notificationMessages = useMemo(() => safeNotifications.length > 0 ? safeNotifications : fallbackMessages, [safeNotifications, fallbackMessages]);
 
   // Filter products with price, then sort bestsellers first, then take first 4
   const trendingProducts = useMemo(() => {
     // Filter products to only include those with a price
-    const pricedProducts = products.filter(product =>
-      product.price !== undefined &&
+    const pricedProducts = safeProducts.filter(product =>
+      product && product.price !== undefined &&
       product.price !== null &&
       product.price > 0
     );
@@ -124,21 +160,21 @@ function Home() {
       return 0;
     });
     return sortedProducts.slice(0, 4);
-  }, [products]);
+  }, [safeProducts]);
 
   // Get products for hero banner animation
   const heroProducts = useMemo(() => {
-    return products.filter(p =>
-      p.price !== undefined &&
+    return safeProducts.filter(p =>
+      p && p.price !== undefined &&
       p.price !== null &&
       p.price > 0 &&
       p.image
     ).slice(0, 5); // Get first 5 products with images
-  }, [products]);
+  }, [safeProducts]);
 
   // Memoize displayed categories to prevent unnecessary re-renders
   const displayedCategories = useMemo(() => {
-    return categories.length > 0 ? categories : [
+    return safeCategories.length > 0 ? safeCategories : [
       { name: 'Traditional Laddus', image: '' },
       { name: 'Healthy Laddus', image: '' },
       { name: 'Premium Laddus', image: '' },
@@ -146,7 +182,7 @@ function Home() {
       { name: 'Sugar-Free', image: '' },
       { name: 'Festive Special', image: '' }
     ];
-  }, [categories]);
+  }, [safeCategories]);
 
   // Auto-rotate hero images
   useEffect(() => {
@@ -247,7 +283,7 @@ function Home() {
             ?.scrollIntoView({ behavior: 'smooth' })
         }
       >
-        ⭐ {statistics.averageRating || 4.9} Rating
+        ⭐ {safeStatistics.averageRating || 4.9} Rating
       </button>
     </div>
 

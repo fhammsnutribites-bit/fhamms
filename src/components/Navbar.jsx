@@ -26,8 +26,8 @@ function Navbar() {
     <nav className="navbar">
       <Link to="/" className="navbar__logo">
         {/* <span className="navbar__logo-icon"><img src='https://img.sanishtech.com/u/58c68d9880d9312fc6cd4f952b2fd642.jpg' alt="FHAMMS NutriBites Logo" /></span> */}
-        <span className="navbar__logo-icon"><img src='https://img.sanishtech.com/u/b18690bc117fea7965cb450665a2970e.png' alt="FHAMMS NutriBites Logo" /></span>
-        <span className="navbar__logo-text">FHAMMS NutriBites</span>
+        <span className="navbar__logo-icon"><img src='https://iili.io/f03PSlj.md.png' alt="FHAMMS NutriBites Logo" /></span>
+        <span className="navbar__logo-text">FHAMMS Nutri Bites</span>
       </Link>
 
       <button

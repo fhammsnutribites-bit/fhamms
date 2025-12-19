@@ -24,6 +24,9 @@ import PrivacyPolicy from './pages/PrivacyPolicy.jsx';
 import TermsOfService from './pages/TermsOfService.jsx';
 import ShippingPolicy from './pages/ShippingPolicy.jsx';
 import PaymentCallback from './pages/PaymentCallback.jsx';
+import About from './pages/About.jsx';
+import Contact from './pages/Contact.jsx';
+import Blog from './pages/Blog.jsx';
 import PrivateRoute from './components/PrivateRoute.jsx';
 import AdminRoute from './components/AdminRoute.jsx';
 import ScrollToTop from './components/ScrollToTop.jsx';
@@ -40,6 +43,9 @@ function App() {
         <Route path="/products" element={<Products />} />
         <Route path="/products/:id" element={<ProductDetail />} />
         <Route path="/faq" element={<FAQ />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/blog" element={<Blog />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms-of-service" element={<TermsOfService />} />
         <Route path="/shipping-policy" element={<ShippingPolicy />} />

@@ -596,8 +596,11 @@ function Checkout() {
           <div className="checkout__section">
             <h3 className="checkout__section-title">Order Summary</h3>
             {cartItems.map(item => (
-              <div key={`${item._id}-${item.selectedWeight}`} className="checkout__summary-item">
-                <div>
+              <div key={`${item._id}-${item.selectedWeight}`} className="checkout__summary-item" style={{alignItems:'center', display:'flex'}}>
+                {(item.image || (item.product && item.product.image)) && (
+                  <img src={item.image || (item.product && item.product.image)} alt={item.name} style={{width:48, height:48, objectFit:'cover', borderRadius:8, marginRight:12}} />
+                )}
+                <div style={{flex:1}}>
                   <div className="checkout__summary-item-name">{item.name}</div>
                   {item.selectedWeight && (
                     <div className="checkout__summary-item-details">

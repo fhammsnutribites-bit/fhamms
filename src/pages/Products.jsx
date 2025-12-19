@@ -73,7 +73,8 @@ function Products() {
   const handleAddToCart = useCallback((product, event) => {
     event.preventDefault();
     event.stopPropagation();
-    setLastAddedProduct(product);
+    // Always include image in product object for cart
+    setLastAddedProduct({ ...product, image: product.image });
     setShowCartModal(true);
   }, []);
 
