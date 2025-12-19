@@ -330,86 +330,79 @@ function ProductDetail() {
 
         {/* Reviews Section */}
         <div className="product-detail__reviews-section">
-          <h2 className="product-detail__reviews-title">Customer Reviews</h2>
+  <h2 className="product-detail__reviews-title">Customer Reviews</h2>
 
-          {reviews.length > 0 ? (
-            <div className="product-detail__reviews-list">
-              {reviews.map((review) => (
-                <div key={review._id} className="product-detail__review-item">
-                  {/* Customer Name and Rating Header */}
-                  <div className="product-detail__review-main-header">
-                    <div className="product-detail__review-customer">
-                      <div className="product-detail__user-avatar">
-                        {(review.user?.name || 'Anonymous').charAt(0).toUpperCase()}
-                      </div>
-                      <div className="product-detail__customer-info">
-                        <h4 className="product-detail__customer-name">
-                          {review.user?.name || 'Anonymous'}
-                          {review.isVerified && (
-                            <span className="product-detail__verified-badge">✓ Verified</span>
-                          )}
-                        </h4>
-                        <div className="product-detail__review-rating">
-                          <RatingDisplay rating={review.rating} size="small" showCount={false} />
-                          <span className="product-detail__rating-value">({review.rating}/5)</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="product-detail__review-date">
-                      📅 {new Date(review.createdAt).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric'
-                      })}
-                    </div>
-                  </div>
+  {reviews.length > 0 ? (
+    <div className="product-detail__reviews-scroll">
+      {reviews.map((review) => (
+        <div key={review._id} className="review-card">
+          {/* Header */}
+          <div className="review-card__header">
+            <div className="review-card__user">
+              <div className="review-card__avatar">
+                {(review.user?.name || 'A').charAt(0).toUpperCase()}
+              </div>
 
-                  {/* Review Message */}
-                  {review.comment && (
-                    <div className="product-detail__review-message">
-                      <div className="product-detail__message-content">
-                        {review.comment}
-                      </div>
-                    </div>
-                  )}
-                  {review.images && review.images.length > 0 && (
-                    <div className="product-detail__review-images">
-                      {review.images.map((image, idx) => (
-                        <img
-                          key={idx}
-                          src={image}
-                          alt={`Review image ${idx + 1}`}
-                          className="product-detail__review-image"
-                          onClick={() => window.open(image, '_blank')}
-                        />
-                      ))}
-                    </div>
+              <div>
+                <div className="review-card__name">
+                  {review.user?.name || 'Anonymous'}
+                  {review.isVerified && (
+                    <span className="review-card__verified">✔ Verified</span>
                   )}
                 </div>
+
+                <div className="review-card__rating">
+                  <RatingDisplay rating={review.rating} size="small" showCount={false} />
+                  <span>({review.rating}/5)</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="review-card__date">
+              {new Date(review.createdAt).toLocaleDateString('en-US', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric'
+              })}
+            </div>
+          </div>
+
+          {/* Comment */}
+          {review.comment && (
+            <p className="review-card__comment">
+              “{review.comment}”
+            </p>
+          )}
+
+          {/* Images */}
+          {review.images?.length > 0 && (
+            <div className="review-card__images">
+              {review.images.map((img, i) => (
+                <img
+                  key={i}
+                  src={img}
+                  alt={`Review ${i + 1}`}
+                  onClick={() => window.open(img, '_blank')}
+                />
               ))}
-
-              {reviewsPagination && reviewsPagination.page < reviewsPagination.pages && (
-                <button
-                  onClick={() => fetchReviews(reviewsPagination.page + 1)}
-                  disabled={reviewsLoading}
-                  className="product-detail__load-more-reviews"
-                >
-                  {reviewsLoading ? 'Loading...' : 'Load More Reviews'}
-                </button>
-              )}
-            </div>
-          ) : !reviewsLoading ? (
-            <div className="product-detail__no-reviews">
-              <p>No reviews yet. Be the first to review this product!</p>
-            </div>
-          ) : null}
-
-          {reviewsLoading && reviews.length === 0 && (
-            <div className="product-detail__reviews-loading">
-              Loading reviews...
             </div>
           )}
         </div>
+      ))}
+    </div>
+  ) : !reviewsLoading ? (
+    <div className="product-detail__no-reviews">
+      No reviews yet. Be the first to review this product!
+    </div>
+  ) : null}
+
+  {reviewsLoading && reviews.length === 0 && (
+    <div className="product-detail__reviews-loading">
+      Loading reviews...
+    </div>
+  )}
+</div>
+
       </div>
       <Footer />
     </div>
