@@ -1,0 +1,22 @@
+/* BEM styles for the PrivateRoute loading state */
+.private-route__loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: #f8f9fa;
+}
+
+.private-route__loading-content {
+  text-align: center;
+}
+
+.private-route__loading-icon {
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+
+.private-route__loading-text {
+  font-size: 18px;
+  color: #666;
+}

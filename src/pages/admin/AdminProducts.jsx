@@ -204,14 +204,14 @@ function AdminProducts() {
       <Navbar />
       <div className="admin-products__container">
         <header className="admin-products__header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <div className="admin-products__header-row">
             <button
               onClick={handleGoBack}
-              className="admin-products__back-button"
+              className="admin-products__back-btn"
             >
               ← Back
             </button>
-            <h1 className="admin-products__title" style={{ margin: 0 }}>Manage Nutri Laddus</h1>
+            <h1 className="admin-products__title">Manage Nutri Laddus</h1>
           </div>
           <button
             className="admin-products__add-btn"
@@ -259,7 +259,7 @@ function AdminProducts() {
               <label>Category*
                 <input value={formData.category} onChange={e => handleFormChange('category', e.target.value)} required className="admin-products__input" placeholder="e.g. Dry Fruit Laddus" />
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label className="admin-products__bestseller-label">
                 <input
                   type="checkbox"
                   checked={formData.isBestseller}
@@ -276,10 +276,10 @@ function AdminProducts() {
             </div>
             
             {/* Product-level Discount */}
-            <div className="admin-products__weights-section" style={{ marginBottom: '20px', padding: '15px', background: '#f8f9fa', borderRadius: '8px' }}>
+            <div className="admin-products__weights-section">
               <h3 className="admin-products__weights-title">Product Discount (applies to all weights if not overridden)</h3>
-              <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className="admin-products__discount-row">
+                <label className="admin-products__discount-label">
                   <input
                     type="checkbox"
                     checked={formData.isDiscountActive}
@@ -292,8 +292,7 @@ function AdminProducts() {
                     <select
                       value={formData.discountType}
                       onChange={e => handleFormChange('discountType', e.target.value)}
-                      className="admin-products__input"
-                      style={{ width: '150px' }}
+                      className="admin-products__input admin-products__input--discount-type"
                     >
                       <option value="">Select Type</option>
                       <option value="percentage">Percentage (%)</option>
@@ -307,8 +306,7 @@ function AdminProducts() {
                       value={formData.discountValue}
                       onChange={e => handleFormChange('discountValue', e.target.value)}
                       placeholder={formData.discountType === 'percentage' ? 'e.g. 20' : 'e.g. 50'}
-                      className="admin-products__input"
-                      style={{ width: '120px' }}
+                      className="admin-products__input admin-products__input--discount-value"
                     />
                   </>
                 )}
@@ -319,7 +317,7 @@ function AdminProducts() {
               <h3 className="admin-products__weights-title">Weights & Pricing (g/₹/stock)</h3>
               <div className="admin-products__weights-row">
                 {formData.weightOptions.map((w, i) => (
-                  <div className="admin-products__weight-box" key={i} style={{ padding: '15px', border: '1px solid #ddd', borderRadius: '8px' }}>
+                  <div className="admin-products__weight-box" key={i}>
                     <div className="admin-products__weight-label">{w.weight}g</div>
                     <input
                       className="admin-products__input"
@@ -339,8 +337,8 @@ function AdminProducts() {
                       placeholder="Stock"
                       onChange={e => handleWeightChange(i,'stock',e.target.value)}
                     />
-                    <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #eee' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '13px', marginBottom: '5px' }}>
+                    <div className="admin-products__weight-discount">
+                      <label className="admin-products__weight-discount-label">
                         <input
                           type="checkbox"
                           checked={w.isDiscountActive}
@@ -349,12 +347,11 @@ function AdminProducts() {
                         Discount for {w.weight}g
                       </label>
                       {w.isDiscountActive && (
-                        <div style={{ display: 'flex', gap: '5px', marginTop: '5px' }}>
+                        <div className="admin-products__weight-discount-row">
                           <select
                             value={w.discountType}
                             onChange={e => handleWeightChange(i, 'discountType', e.target.value)}
-                            className="admin-products__input"
-                            style={{ width: '100px', fontSize: '12px', padding: '4px' }}
+                            className="admin-products__input admin-products__input--weight-discount-type"
                           >
                             <option value="">Type</option>
                             <option value="percentage">%</option>
@@ -368,8 +365,7 @@ function AdminProducts() {
                             value={w.discountValue}
                             onChange={e => handleWeightChange(i, 'discountValue', e.target.value)}
                             placeholder={w.discountType === 'percentage' ? 'e.g. 15' : 'e.g. 30'}
-                            className="admin-products__input"
-                            style={{ width: '80px', fontSize: '12px', padding: '4px' }}
+                            className="admin-products__input admin-products__input--weight-discount-value"
                           />
                         </div>
                       )}

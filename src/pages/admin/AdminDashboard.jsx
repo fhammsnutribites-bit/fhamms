@@ -96,13 +96,7 @@ function AdminDashboard() {
       <Navbar />
       <div className="admin-dashboard__container">
         <div className="admin-dashboard__header">
-          <button
-            className="admin-dashboard__back-button"
-            onClick={handleGoBack}
-            aria-label="Go back"
-          >
-            ← Back
-          </button>
+          
           <h2 className="admin-dashboard__title">Admin Dashboard</h2>
         </div>
         <div className="admin-dashboard__actions">

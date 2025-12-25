@@ -102,7 +102,7 @@ function Cart() {
                           className="cart__item-quantity-button"
                           disabled={updatingQuantity}
                         >
-                          {updatingQuantity ? '...' : '−'}
+                          {updatingQuantity ? <Loader size="small" text="" /> : '−'}
                         </button>
                         <span className="cart__item-quantity-value">{item.qty}</span>
                         <button
@@ -112,7 +112,7 @@ function Cart() {
                           className="cart__item-quantity-button"
                           disabled={updatingQuantity}
                         >
-                          {updatingQuantity ? '...' : '+'}
+                          {updatingQuantity ? <Loader size="small" text="" /> : '+'}
                         </button>
                       </div>
                       <button
@@ -122,7 +122,7 @@ function Cart() {
                         className="cart__item-remove"
                         disabled={removingFromCart}
                       >
-                        {removingFromCart ? 'Removing...' : 'Remove'}
+                        {removingFromCart ? <Loader size="small" text="" /> : 'Remove'}
                       </button>
                     </div>
                   </div>

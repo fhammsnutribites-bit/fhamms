@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import Navbar from '../../components/Navbar.jsx';
 import { usersApi } from '../../services/usersApi.js';
+import '../../styles/pages/admin-users.css';
 
 function AdminUsers() {
   const { user } = useAuth();
@@ -53,7 +54,7 @@ function AdminUsers() {
     return (
       <div>
         <Navbar />
-        <div style={{padding:40,textAlign:'center'}}>Access Denied</div>
+        <div className="admin-users__denied">Access Denied</div>
       </div>
     );
   }
@@ -61,64 +62,38 @@ function AdminUsers() {
   return (
     <div>
       <Navbar />
-      <div style={{maxWidth:1200,margin:'30px auto',padding:20}}>
-        <div style={{display:'flex', alignItems:'center', gap:'20px', marginBottom:'20px'}}>
-          <button
-            onClick={handleGoBack}
-            style={{
-              background: '#f8f9fa',
-              border: '2px solid #e0e0e0',
-              borderRadius: '8px',
-              padding: '10px 16px',
-              fontSize: '14px',
-              fontWeight: '600',
-              color: '#666',
-              cursor: 'pointer',
-              transition: 'all 0.3s',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}
-            onMouseOver={(e) => {
-              e.target.style.background = '#e8f5e9';
-              e.target.style.borderColor = '#4caf50';
-              e.target.style.color = '#2e7d32';
-            }}
-            onMouseOut={(e) => {
-              e.target.style.background = '#f8f9fa';
-              e.target.style.borderColor = '#e0e0e0';
-              e.target.style.color = '#666';
-            }}
-          >
-            ← Back
+      <div className="admin-users__container">
+        <div className="admin-users__header">
+          <button className="admin-users__back-btn" onClick={handleGoBack}>
+           ← Back
           </button>
-          <h2 style={{margin: 0}}>Manage Users</h2>
+          <h2 className="admin-users__title">Manage Users</h2>
         </div>
         {loading ? (
           <p>Loading...</p>
         ) : (
-          <table style={{width:'100%',borderCollapse:'collapse'}}>
+          <table className="admin-users__table">
             <thead>
-              <tr style={{background:'#f5f5f5'}}>
-                <th style={{padding:10,textAlign:'left'}}>Name</th>
-                <th style={{padding:10,textAlign:'left'}}>Email</th>
-                <th style={{padding:10,textAlign:'left'}}>Role</th>
-                <th style={{padding:10,textAlign:'left'}}>Joined</th>
-                <th style={{padding:10,textAlign:'left'}}>Actions</th>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Joined</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {users.map(usr => (
-                <tr key={usr._id} style={{borderBottom:'1px solid #ddd'}}>
-                  <td style={{padding:10}}>{usr.name}</td>
-                  <td style={{padding:10}}>{usr.email}</td>
-                  <td style={{padding:10}}>
-                    {usr.isAdmin ? <span style={{color:'red'}}>Admin</span> : <span>User</span>}
+                <tr key={usr._id}>
+                  <td>{usr.name}</td>
+                  <td>{usr.email}</td>
+                  <td>
+                    {usr.isAdmin ? <span className="admin-users__admin">Admin</span> : <span>User</span>}
                   </td>
-                  <td style={{padding:10}}>{new Date(usr.createdAt).toLocaleDateString()}</td>
-                  <td style={{padding:10}}>
+                  <td>{new Date(usr.createdAt).toLocaleDateString()}</td>
+                  <td>
                     {usr._id !== user.id && (
-                      <button onClick={() => handleDelete(usr._id)} style={{padding:'5px 10px',background:'#dc3545',color:'white',border:'none',borderRadius:3,cursor:'pointer'}}>
+                      <button className="admin-users__delete-btn" onClick={() => handleDelete(usr._id)}>
                         Delete
                       </button>
                     )}

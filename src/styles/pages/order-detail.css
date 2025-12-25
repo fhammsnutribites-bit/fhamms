@@ -1,3 +1,37 @@
+/* BEM styles for OrderDetail page */
+
+.order-detail__container {
+  min-height: 100vh;
+  background: #f8f9fa;
+}
+
+.order-detail__centered {
+  text-align: center;
+  padding: 100px 20px;
+}
+
+.order-detail__icon-large {
+  font-size: 64px;
+  margin-bottom: 20px;
+}
+
+.order-detail__heading {
+  font-size: 28px;
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.order-detail__link-button {
+  display: inline-block;
+  padding: 14px 32px;
+  background: #4caf50;
+  color: white;
+  text-decoration: none;
+  border-radius: 50px;
+  font-weight: 600;
+  font-size: 16px;
+  margin-top: 20px;
+}
 /* Order Detail Page - BEM Methodology */
 .order-detail {
   min-height: 100vh;

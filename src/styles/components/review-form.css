@@ -1,0 +1,77 @@
+/* BEM styles for the ReviewForm component */
+.review-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.review-form__field {
+  margin-bottom: 15px;
+}
+
+.review-form__label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.review-form__stars {
+  display: flex;
+  gap: 5px;
+}
+
+.review-form__star {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #ddd;
+  transition: color 0.2s;
+}
+
+.review-form__star--filled {
+  color: #ffc107;
+}
+
+.review-form__textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.review-form__char-count {
+  font-size: 12px;
+  color: #666;
+  text-align: right;
+  margin-top: 5px;
+}
+
+.review-form__error {
+  color: #dc3545;
+  font-size: 14px;
+  margin-bottom: 10px;
+  padding: 8px;
+  background: #f8d7da;
+  border-radius: 4px;
+}
+
+.review-form__submit {
+  padding: 10px 20px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background-color 0.2s ease;
+}
+
+.review-form__submit:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}

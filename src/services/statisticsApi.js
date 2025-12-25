@@ -34,16 +34,12 @@ export const statisticsApi = {
           stats.totalCustomers = usersResponse.data.count || usersResponse.data.total || usersResponse.data;
         } catch (countErr) {
           try {
-            const usersResponse = await apiClient.get('/api/users');
-            stats.totalCustomers = Array.isArray(usersResponse.data) ? usersResponse.data.length : (usersResponse.data.count || usersResponse.data.total || 0);
-          } catch (publicErr) {
-            try {
-              const usersResponse = await apiClient.get('/api/users', { headers: createHeaders(true) });
-              stats.totalCustomers = usersResponse.data.length;
-            } catch (adminErr) {
-              console.log('Could not fetch users count');
-              stats.totalCustomers = 25000; // Fallback
-            }
+            // Only try admin endpoint if we have auth (but this will likely fail for non-admins)
+            const usersResponse = await apiClient.get('/api/users', { headers: createHeaders(true) });
+            stats.totalCustomers = usersResponse.data.length;
+          } catch (adminErr) {
+            console.log('Could not fetch users count (expected for non-admin users)');
+            stats.totalCustomers = 25000; // Fallback
           }
         }
 
@@ -71,11 +67,11 @@ export const statisticsApi = {
         }
 
         try {
-          // Get total orders
+          // Get total orders - only try if admin (will fail gracefully for non-admins)
           const ordersResponse = await apiClient.get('/api/orders', { headers: createHeaders(true) });
           stats.totalOrders = ordersResponse.data.length;
         } catch (err) {
-          console.log('Could not fetch orders count');
+          console.log('Could not fetch orders count (expected for non-admin users)');
           stats.totalOrders = 15000; // Fallback
         }
 

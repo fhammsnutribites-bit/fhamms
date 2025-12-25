@@ -60,6 +60,26 @@
   border-color: #4caf50;
 }
 
+.login__input--error {
+  border-color: #f44336;
+}
+
+.login__field-error {
+  display: block;
+  color: #f44336;
+  font-size: 12px;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.login__field-hint {
+  display: block;
+  color: #666;
+  font-size: 12px;
+  margin-top: 4px;
+  font-weight: 400;
+}
+
 .login__button {
   width: 100%;
   padding: 16px;

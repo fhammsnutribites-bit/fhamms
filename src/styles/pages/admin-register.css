@@ -1,0 +1,94 @@
+/* Admin Register Page Styles (BEM) */
+
+.admin-register {
+  min-height: 100vh;
+  background: #f8f9fa;
+}
+
+.admin-register__container {
+  max-width: 450px;
+  margin: 60px auto;
+  padding: 40px;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+}
+
+.admin-register__title {
+  font-size: 32px;
+  font-weight: bold;
+  color: #dc3545;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.admin-register__subtitle {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.admin-register__field {
+  margin-bottom: 20px;
+}
+
+.admin-register__label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+}
+
+.admin-register__input {
+  width: 100%;
+  padding: 14px;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  font-size: 16px;
+  transition: border-color 0.3s;
+}
+
+.admin-register__input:focus {
+  border-color: #dc3545;
+}
+
+.admin-register__button {
+  width: 100%;
+  padding: 14px;
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: background 0.2s;
+}
+
+.admin-register__button:disabled {
+  background: #e0e0e0;
+  color: #aaa;
+  cursor: not-allowed;
+}
+
+.admin-register__error {
+  color: #dc3545;
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+.admin-register__login-link {
+  text-align: center;
+  font-size: 14px;
+  color: #666;
+  margin-top: 20px;
+}
+
+.admin-register__login-link a {
+  color: #4caf50;
+  font-weight: 600;
+  text-decoration: none;
+}

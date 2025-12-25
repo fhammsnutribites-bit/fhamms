@@ -3,17 +3,39 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useNavigate, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
+import { validateIndianMobile, formatIndianMobile, getMobileValidationError } from '../utils/validation.js';
 import '../styles/pages/login.css';
 
 function Login() {
-  const [email, setEmail] = useState('');
+  const [mobile, setMobile] = useState('');
   const [password, setPassword] = useState('');
+  const [mobileError, setMobileError] = useState('');
   const { login, error, loading } = useAuth();
   const navigate = useNavigate();
 
+  const handleMobileChange = (e) => {
+    const value = e.target.value;
+    setMobile(value);
+
+    // Clear error when user starts typing
+    if (mobileError) {
+      setMobileError('');
+    }
+  };
+
   const handleSubmit = async e => {
     e.preventDefault();
-    const user = await login(email, password);
+
+    // Validate mobile number
+    const mobileValidationError = getMobileValidationError(mobile);
+    if (mobileValidationError) {
+      setMobileError(mobileValidationError);
+      return;
+    }
+
+    // Format mobile number before sending
+    const formattedMobile = formatIndianMobile(mobile);
+    const user = await login(formattedMobile, password);
     if (user) navigate(user.isAdmin ? '/admin' : '/');
   };
 
@@ -26,14 +48,18 @@ function Login() {
         {error && <div className="login__error">{error}</div>}
         <form onSubmit={handleSubmit} className="login__form">
           <div className="login__field">
-            <label className="login__label">Email</label>
+            <label className="login__label">Mobile Number</label>
             <input
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              type="email"
+              value={mobile}
+              onChange={handleMobileChange}
+              type="tel"
               required
-              className="login__input"
+              className={`login__input ${mobileError ? 'login__input--error' : ''}`}
+              placeholder="Enter 10-digit mobile number"
+              maxLength="10"
             />
+            {mobileError && <span className="login__field-error">{mobileError}</span>}
+            <small className="login__field-hint">Enter 10-digit Indian mobile number (e.g., 9876543210)</small>
           </div>
           <div className="login__field">
             <label className="login__label">Password</label>
@@ -50,6 +76,9 @@ function Login() {
           </button>
         </form>
         <div className="login__links">
+          <p className="login__forgot-text">
+            <Link to="/forgot-password" className="login__link">Forgot Password?</Link>
+          </p>
           <p className="login__signup-text">
             Don't have an account? <Link to="/register" className="login__link">Sign Up</Link>
           </p>

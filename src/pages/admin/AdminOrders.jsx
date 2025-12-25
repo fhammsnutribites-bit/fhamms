@@ -325,7 +325,38 @@ function OrderCard({ order, onDeliveryStatusUpdate, onTrackingIdUpdate, onDelete
         <div className="admin-orders__customer-email">
           {order.user?.email || 'No email'}
         </div>
+        {order.shippingAddress?.phone && (
+          <div className="admin-orders__customer-phone">
+            📞 {order.shippingAddress.phone}
+          </div>
+        )}
       </div>
+
+      {order.shippingAddress && (
+        <div className="admin-orders__shipping-address">
+          <div className="admin-orders__address-title">Shipping Address</div>
+          <div className="admin-orders__address-content">
+            {order.shippingAddress.label && <div><strong>{order.shippingAddress.label}</strong></div>}
+            <div>{order.shippingAddress.addressLine1}</div>
+            {order.shippingAddress.addressLine2 && <div>{order.shippingAddress.addressLine2}</div>}
+            <div>{order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zip}</div>
+            <div>{order.shippingAddress.country}</div>
+          </div>
+        </div>
+      )}
+
+      {order.paymentInfo && (
+        <div className="admin-orders__payment-info">
+          <div className="admin-orders__payment-method">
+            Payment Method: {order.paymentInfo.method || 'Razorpay'}
+          </div>
+          {order.paymentInfo.transactionId && (
+            <div className="admin-orders__transaction-id">
+              Transaction ID: {order.paymentInfo.transactionId}
+            </div>
+          )}
+        </div>
+      )}
 
       {!isCompact && (
         <>
@@ -333,12 +364,21 @@ function OrderCard({ order, onDeliveryStatusUpdate, onTrackingIdUpdate, onDelete
             <div className="admin-orders__order-items-title">Order Items</div>
             {order.orderItems?.map((item, idx) => (
               <div key={idx} className="admin-orders__item">
-                <div className="admin-orders__item-name">
-                  {item.product?.name || 'Product'}
-                </div>
-                <div className="admin-orders__item-qty">×{item.qty}</div>
-                <div className="admin-orders__item-price">
-                  ₹{(item.price || 0).toFixed(2)}
+                {item.product?.image && (
+                  <img
+                    src={item.product.image}
+                    alt={item.product.name}
+                    className="admin-orders__item-image"
+                  />
+                )}
+                <div className="admin-orders__item-details">
+                  <div className="admin-orders__item-name">
+                    {item.product?.name || 'Product'}
+                  </div>
+                  <div className="admin-orders__item-qty">×{item.qty}</div>
+                  <div className="admin-orders__item-price">
+                    ₹{(item.price || 0).toFixed(2)}
+                  </div>
                 </div>
               </div>
             ))}

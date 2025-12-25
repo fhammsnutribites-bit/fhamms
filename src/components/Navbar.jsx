@@ -149,8 +149,7 @@ function Navbar() {
           {user ? (
             <button
               onClick={() => { logout(); setMobileMenuOpen(false); }}
-              className="navbar__button"
-              style={{ width: '100%' }}
+              className="navbar__button navbar__button--fullwidth"
             >
               Logout
             </button>
@@ -158,8 +157,7 @@ function Navbar() {
             <Link
               to="/login"
               onClick={() => setMobileMenuOpen(false)}
-              className="navbar__button"
-              style={{ textAlign: 'center', display: 'block' }}
+              className="navbar__button navbar__button--centered"
             >
               Sign In
             </Link>

@@ -151,6 +151,17 @@
   transform: translateY(-2px);
 }
 
+.account__button:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.account__button:disabled:hover {
+  background: #cccccc;
+  transform: none;
+}
+
 .account__button--secondary {
   background: #f5f5f5;
   color: #666;
@@ -332,6 +343,33 @@
     margin-left: 0;
     margin-top: 10px;
   }
+}
+
+/* Not logged in state */
+.account__not-logged-in {
+  min-height: 100vh;
+  background: #f8f9fa;
+}
+
+.account__not-logged-in-content {
+  text-align: center;
+  padding: 100px 20px;
+}
+
+.account__not-logged-in-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+}
+
+.account__not-logged-in-title {
+  font-size: 28px;
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.account__not-logged-in-text {
+  font-size: 16px;
+  color: #666;
 }
 
 

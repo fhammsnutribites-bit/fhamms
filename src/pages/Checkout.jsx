@@ -453,9 +453,8 @@ function Checkout() {
                   required
                   value={formData.city}
                   onChange={e => setFormData({...formData, city: e.target.value})}
-                  className="checkout__input"
+                  className={`checkout__input ${formData.postalCode.length === 6 && formData.city ? 'checkout__input--readonly' : ''}`}
                   readOnly={formData.postalCode.length === 6 && formData.city ? true : false}
-                  style={formData.postalCode.length === 6 && formData.city ? { backgroundColor: '#f0f0f0', cursor: 'not-allowed' } : {}}
                 />
                 {formData.postalCode.length === 6 && formData.city && (
                   <small className="checkout__pincode-info">Auto-filled from pincode (you can edit if needed)</small>
@@ -468,9 +467,8 @@ function Checkout() {
                   required
                   value={formData.state}
                   onChange={e => setFormData({...formData, state: e.target.value})}
-                  className="checkout__input"
+                  className={`checkout__input ${formData.postalCode.length === 6 && formData.state ? 'checkout__input--readonly' : ''}`}
                   readOnly={formData.postalCode.length === 6 && formData.state ? true : false}
-                  style={formData.postalCode.length === 6 && formData.state ? { backgroundColor: '#f0f0f0', cursor: 'not-allowed' } : {}}
                 />
                 {formData.postalCode.length === 6 && formData.state && (
                   <small className="checkout__pincode-info">Auto-filled from pincode (you can edit if needed)</small>
@@ -483,8 +481,7 @@ function Checkout() {
                   required
                   value={formData.country}
                   readOnly
-                  className="checkout__input"
-                  style={{ backgroundColor: '#f0f0f0', cursor: 'not-allowed' }}
+                  className="checkout__input checkout__input--readonly"
                 />
               </div>
 
@@ -513,12 +510,7 @@ function Checkout() {
                         type="button"
                         onClick={validatePromoCode}
                         disabled={validatingPromo || !promoCode.trim() || hasProductDiscount}
-                        className="checkout__button"
-                        style={{ 
-                          padding: '10px 20px',
-                          whiteSpace: 'nowrap',
-                          minWidth: '100px'
-                        }}
+                        className="checkout__button checkout__button--small"
                       >
                         {validatingPromo ? 'Validating...' : 'Apply'}
                       </button>
@@ -526,11 +518,7 @@ function Checkout() {
                       <button
                         type="button"
                         onClick={removePromoCode}
-                        className="checkout__empty-button"
-                        style={{ 
-                          padding: '10px 20px',
-                          whiteSpace: 'nowrap'
-                        }}
+                        className="checkout__empty-button checkout__empty-button--small"
                       >
                         Remove
                       </button>
@@ -596,11 +584,11 @@ function Checkout() {
           <div className="checkout__section">
             <h3 className="checkout__section-title">Order Summary</h3>
             {cartItems.map(item => (
-              <div key={`${item._id}-${item.selectedWeight}`} className="checkout__summary-item" style={{alignItems:'center', display:'flex'}}>
+              <div key={`${item._id}-${item.selectedWeight}`} className="checkout__summary-item">
                 {(item.image || (item.product && item.product.image)) && (
-                  <img src={item.image || (item.product && item.product.image)} alt={item.name} style={{width:48, height:48, objectFit:'cover', borderRadius:8, marginRight:12}} />
+                  <img src={item.image || (item.product && item.product.image)} alt={item.name} className="checkout__summary-item-image" />
                 )}
-                <div style={{flex:1}}>
+                <div className="checkout__summary-item-content">
                   <div className="checkout__summary-item-name">{item.name}</div>
                   {item.selectedWeight && (
                     <div className="checkout__summary-item-details">

@@ -78,18 +78,45 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (name, email, password, isAdmin = false) => {
+  const register = async (name, email, password, mobile, isAdmin = false) => {
     dispatch({ type: 'LOADING' });
     try {
-      const data = await authApi.register({ name, email, password, isAdmin });
-      localStorage.setItem('user', JSON.stringify(data.user));
-      localStorage.setItem('token', data.token);
-      dispatch({ type: 'LOGIN_SUCCESS', payload: data.user });
-      // Cart merge will be handled by CartContext useEffect
-      return data.user;
+      const data = await authApi.register({ name, email, password, mobile, isAdmin });
+      // Return tempUserId for OTP verification step
+      return data;
     } catch (err) {
       console.error('Register error:', err);
       const errorMsg = err.response?.data?.message || err.message || 'Register failed';
+      dispatch({ type: 'LOGIN_ERROR', payload: errorMsg });
+      return null;
+    }
+  };
+
+  const resendOtp = async (tempUserId) => {
+    dispatch({ type: 'LOADING' });
+    try {
+      const data = await authApi.resendOtp(tempUserId);
+      dispatch({ type: 'LOGIN_ERROR', payload: null }); // Clear any previous errors
+      return data;
+    } catch (err) {
+      console.error('Resend OTP error:', err);
+      const errorMsg = err.response?.data?.message || err.message || 'Failed to resend OTP';
+      dispatch({ type: 'LOGIN_ERROR', payload: errorMsg });
+      return null;
+    }
+  };
+
+  const verifyRegistration = async (tempUserId, otp) => {
+    dispatch({ type: 'LOADING' });
+    try {
+      const data = await authApi.verifyRegistration(tempUserId, otp);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('token', data.token);
+      dispatch({ type: 'LOGIN_SUCCESS', payload: data.user });
+      return data.user;
+    } catch (err) {
+      console.error('Verify registration error:', err);
+      const errorMsg = err.response?.data?.message || err.message || 'OTP verification failed';
       dispatch({ type: 'LOGIN_ERROR', payload: errorMsg });
       return null;
     }
@@ -102,7 +129,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ ...state, login, register, logout }}>
+    <AuthContext.Provider value={{ ...state, login, register, verifyRegistration, resendOtp, logout }}>
       {children}
     </AuthContext.Provider>
   );

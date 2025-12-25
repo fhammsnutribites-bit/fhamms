@@ -7,7 +7,7 @@ function AddToCartModal({ isOpen, onClose, product, onAddToCart }) {
   const navigate = useNavigate();
   const [selectedWeight, setSelectedWeight] = useState(null);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [addedProduct, setAddedProduct] = useState(null);
+  const [addedProducts, setAddedProducts] = useState([]);
   const [quantities, setQuantities] = useState({});
 
   // Get available weight options
@@ -22,7 +22,7 @@ function AddToCartModal({ isOpen, onClose, product, onAddToCart }) {
     if (isOpen && product) {
       setSelectedWeight(null);
       setShowSuccess(false);
-      setAddedProduct(null);
+      setAddedProducts([]);
       setQuantities({});
     }
   }, [isOpen, product]);
@@ -73,7 +73,7 @@ function AddToCartModal({ isOpen, onClose, product, onAddToCart }) {
       for (const item of itemsToAdd) {
         await onAddToCart(item, item.quantity);
       }
-      setAddedProduct(itemsToAdd.length > 0 ? itemsToAdd[0] : null); // Show first item in success
+      setAddedProducts(itemsToAdd);
       setShowSuccess(true);
     } catch (error) {
       console.error('Failed to add items to cart:', error);
@@ -105,34 +105,38 @@ function AddToCartModal({ isOpen, onClose, product, onAddToCart }) {
             <div className="add-to-cart-modal__icon">✅</div>
             <h2 className="add-to-cart-modal__title">Added to Cart!</h2>
 
-            <div className="add-to-cart-modal__product">
-              <div className="add-to-cart-modal__product-image">
-                {addedProduct?.image ? (
-                  <img src={addedProduct.image} alt={addedProduct.name} />
-                ) : (
-                  <div className="add-to-cart-modal__placeholder">📦</div>
-                )}
-              </div>
-              <div className="add-to-cart-modal__product-info">
-                <h3 className="add-to-cart-modal__product-name">{addedProduct?.name}</h3>
-                <div className="add-to-cart-modal__product-details">
-                  <span className="add-to-cart-modal__weight-selected">
-                    {addedProduct?.selectedWeight}g × {addedProduct?.quantity}
-                  </span>
-                  <span className="add-to-cart-modal__price">
-                    ₹{(addedProduct?.price * addedProduct?.quantity)?.toFixed(2)}
-                    {addedProduct?.originalPrice && addedProduct.originalPrice > addedProduct.price && (
-                      <span className="add-to-cart-modal__original-price">
-                        ₹{(addedProduct.originalPrice * addedProduct.quantity).toFixed(2)}
-                      </span>
+            <div className="add-to-cart-modal__products">
+              {addedProducts.map((product, index) => (
+                <div key={index} className="add-to-cart-modal__product">
+                  <div className="add-to-cart-modal__product-image">
+                    {product?.image ? (
+                      <img src={product.image} alt={product.name} />
+                    ) : (
+                      <div className="add-to-cart-modal__placeholder">📦</div>
                     )}
-                  </span>
+                  </div>
+                  <div className="add-to-cart-modal__product-info">
+                    <h3 className="add-to-cart-modal__product-name">{product?.name}</h3>
+                    <div className="add-to-cart-modal__product-details">
+                      <span className="add-to-cart-modal__weight-selected">
+                        {product?.selectedWeight}g × {product?.quantity}
+                      </span>
+                      <span className="add-to-cart-modal__price">
+                        ₹{(product?.price * product?.quantity)?.toFixed(2)}
+                        {product?.originalPrice && product.originalPrice > product.price && (
+                          <span className="add-to-cart-modal__original-price">
+                            ₹{(product.originalPrice * product.quantity).toFixed(2)}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
 
             <p className="add-to-cart-modal__message">
-              Item has been added to your cart successfully!
+              {addedProducts.length === 1 ? 'Item has been added to your cart successfully!' : 'Items have been added to your cart successfully!'}
             </p>
 
             <div className="add-to-cart-modal__actions">

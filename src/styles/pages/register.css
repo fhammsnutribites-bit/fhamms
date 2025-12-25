@@ -60,6 +60,42 @@
   border-color: #4caf50;
 }
 
+.register__input--complete {
+  border-color: #4caf50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+}
+
+.register__field-error {
+  display: block;
+  color: #f44336;
+  font-size: 12px;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.register__otp-status {
+  display: flex;
+  align-items: center;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #e8f5e8;
+  border-radius: 8px;
+  border: 1px solid #4caf50;
+}
+
+.register__otp-check {
+  color: #4caf50;
+  font-weight: bold;
+  font-size: 16px;
+  margin-right: 8px;
+}
+
+.register__otp-ready {
+  color: #2e7d32;
+  font-size: 14px;
+  font-weight: 500;
+}
+
 .register__button {
   width: 100%;
   padding: 16px;
@@ -75,15 +111,75 @@
   box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
 }
 
-.register__button:hover {
+.register__button:not(:disabled) {
+  background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+  box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+}
+
+.register__button:not(:disabled):hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 6px 20px rgba(76, 175, 80, 0.5);
 }
 
 .register__button:disabled {
-  opacity: 0.6;
+  background: #cccccc;
+  color: #666666;
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
+}
+
+.register__back-button {
+  width: 100%;
+  padding: 12px;
+  background: transparent;
+  color: #666;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-top: 10px;
+}
+
+.register__back-button:hover {
+  background: #f5f5f5;
+  border-color: #ccc;
+  color: #333;
+}
+
+.register__resend-section {
+  text-align: center;
+  margin: 15px 0;
+}
+
+.register__resend-text {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+}
+
+.register__resend-link {
+  background: none;
+  border: none;
+  color: #1b5e20;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 14px;
+  padding: 0;
+  margin-left: 4px;
+}
+
+.register__resend-link:hover:not(:disabled) {
+  color: #0d4f15;
+}
+
+.register__resend-link:disabled {
+  color: #ccc;
+  cursor: not-allowed;
+  text-decoration: none;
 }
 
 .register__error {

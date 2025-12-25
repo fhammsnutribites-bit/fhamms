@@ -10,7 +10,6 @@ import SEO from '../SEO.jsx';
 import { productsApi } from '../services/productsApi.js';
 import { categoriesApi } from '../services/categoriesApi.js';
 import { notificationsApi } from '../services/notificationsApi.js';
-import { statisticsApi } from '../services/statisticsApi.js';
 import { useCart } from '../context/CartContext.jsx';
 import Loader from '../components/Loader.jsx';
 import '../styles/pages/home.css';
@@ -50,7 +49,7 @@ function Home() {
   // Fallback notification messages (used if API fails or no notifications exist)
   const fallbackMessages = [
     {
-      text: "Free delivery on orders above ₹500 • Same day delivery in Delhi NCR • 100% authentic dry fruit laddus",
+      text: "Free delivery on orders above ₹1299 • Same day delivery in Guntur • 100% authentic dry fruit laddus",
       icon: "🚚",
       accentIcon: "⭐"
     },
@@ -65,7 +64,7 @@ function Home() {
       accentIcon: "🍯"
     },
     {
-      text: "Trusted by 10,000+ customers • 4.9 star rating • Best dry fruit laddus online",
+      text: "Trusted by 1,000+ customers • 4.9 star rating • Best dry fruit laddus online",
       icon: "💎",
       accentIcon: "🏅"
     }
@@ -132,14 +131,14 @@ function Home() {
   }, []);
 
   const fetchStatistics = useCallback(async () => {
-    try {
-      const data = await statisticsApi.getDashboardStats();
-      console.log('Statistics API response:', data);
-      setStatistics(data && typeof data === 'object' ? data : { totalCustomers: 0, totalProducts: 0, averageRating: 0, totalOrders: 0 });
-    } catch (err) {
-      console.error('Failed to load statistics:', err);
-      setStatistics({ totalCustomers: 0, totalProducts: 0, averageRating: 0, totalOrders: 0 });
-    }
+    // For public users, just use fallback statistics to avoid admin API calls
+    console.log('Using fallback statistics for public access');
+    setStatistics({
+      totalCustomers: 25000,
+      totalProducts: 85,
+      averageRating: 4.9,
+      totalOrders: 15000
+    });
   }, []);
 
   // Notification messages fallback if API fails
@@ -290,7 +289,7 @@ function Home() {
     <div className="home-hero__trust">
       <span>✔ No Preservatives</span>
       <span>✔ Premium Dry Fruits</span>
-      <span>✔ 25K+ Happy Families</span>
+      <span>✔ 2K+ Happy Families</span>
     </div>
   </div>
 

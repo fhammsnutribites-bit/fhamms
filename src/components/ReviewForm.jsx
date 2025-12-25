@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { memo } from 'react';
+import '../styles/components/review-form.css';
 
 /**
  * Review Form Component for submitting product reviews
@@ -29,26 +30,22 @@ function ReviewForm({ productId, onSubmit, loading, error }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} onClick={handleFormClick}>
-      <div style={{ marginBottom: '15px' }}>
-        <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px' }}>
+    <form className="review-form" onSubmit={handleSubmit} onClick={handleFormClick}>
+      <div className="review-form__field">
+        <label className="review-form__label">
           Rating: *
         </label>
-        <div style={{ display: 'flex', gap: '5px' }}>
+        <div className="review-form__stars">
           {[1, 2, 3, 4, 5].map((star) => (
             <button
               key={star}
               type="button"
+              className={
+                'review-form__star' + (star <= (hoverRating || rating) ? ' review-form__star--filled' : '')
+              }
               onClick={() => setRating(star)}
               onMouseEnter={() => setHoverRating(star)}
               onMouseLeave={() => setHoverRating(0)}
-              style={{
-                background: 'none',
-                border: 'none',
-                fontSize: '24px',
-                cursor: 'pointer',
-                color: star <= (hoverRating || rating) ? '#ffc107' : '#ddd'
-              }}
             >
               ★
             </button>
@@ -56,57 +53,32 @@ function ReviewForm({ productId, onSubmit, loading, error }) {
         </div>
       </div>
 
-      <div style={{ marginBottom: '15px' }}>
-        <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px' }}>
+      <div className="review-form__field">
+        <label className="review-form__label">
           Review (Optional):
         </label>
         <textarea
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           placeholder="Share your experience with this product..."
-          style={{
-            width: '100%',
-            minHeight: '80px',
-            padding: '10px',
-            border: '1px solid #ddd',
-            borderRadius: '6px',
-            fontSize: '14px',
-            resize: 'vertical'
-          }}
+          className="review-form__textarea"
           maxLength={500}
         />
-        <div style={{ fontSize: '12px', color: '#666', textAlign: 'right', marginTop: '5px' }}>
+        <div className="review-form__char-count">
           {comment.length}/500
         </div>
       </div>
 
       {error && (
-        <div style={{
-          color: '#dc3545',
-          fontSize: '14px',
-          marginBottom: '10px',
-          padding: '8px',
-          background: '#f8d7da',
-          borderRadius: '4px'
-        }}>
+        <div className="review-form__error">
           {error}
         </div>
       )}
 
       <button
         type="submit"
+        className="review-form__submit"
         disabled={loading || rating < 1}
-        style={{
-          padding: '10px 20px',
-          background: loading ? '#6c757d' : '#28a745',
-          color: 'white',
-          border: 'none',
-          borderRadius: '6px',
-          cursor: loading ? 'not-allowed' : 'pointer',
-          fontSize: '14px',
-          fontWeight: '600',
-          transition: 'background-color 0.2s ease'
-        }}
       >
         {loading ? 'Submitting...' : 'Submit Review'}
       </button>
