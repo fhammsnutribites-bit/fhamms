@@ -37,17 +37,17 @@ function Products() {
     }
   }, []);
 
+  // CONSOLIDATED: Load products and set category from URL on mount
   useEffect(() => {
+    // Load products
     fetchProducts();
-  }, [fetchProducts]);
 
-  // Set category from URL parameter on mount
-  useEffect(() => {
+    // Set category from URL parameter on mount
     const categoryParam = searchParams.get('category');
     if (categoryParam) {
       setSelectedCategory(decodeURIComponent(categoryParam));
     }
-  }, [searchParams]);
+  }, [fetchProducts, searchParams]);
 
   const categories = useMemo(() => {
     return ['All', ...new Set(products.map(p => p.category).filter(Boolean))];

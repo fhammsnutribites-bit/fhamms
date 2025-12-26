@@ -9,11 +9,14 @@ import { reviewsApi } from '../services/reviewsApi.js';
 import RatingDisplay from '../components/RatingDisplay.jsx';
 import { getOrderStatus, getDeliveryStatusOptions } from '../utils/orderUtils.js';
 import { formatOrderNumber } from '../utils/orderUtils.js';
+import '../styles/pages/OrderDetail.css';
 
 function OrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  
+  // Consolidated state management
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -23,34 +26,43 @@ function OrderDetail() {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [statusUpdateNotification, setStatusUpdateNotification] = useState(false);
-  const [previousStatus, setPreviousStatus] = useState(null);
 
+  // Refs for tracking
+  const reviewsFetchedRef = useRef(new Set());
+  const autoRefreshRef = useRef(null);
+  const handlersRef = useRef(new Map());
+  const submitReviewRef = useRef(null);
+  const notificationTimeoutRef = useRef(null);
+
+  // Fetch order - optimized with single function
   const fetchOrder = useCallback(async (isRefresh = false) => {
-    if (authLoading) return;
-    if (!user) {
-      setLoading(false);
+    if (authLoading || !user) {
+      if (!isRefresh) setLoading(false);
       return;
     }
 
-    if (isRefresh) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
-    }
-    setError(null);
-
     try {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      setError(null);
+
       const data = await ordersApi.getById(id);
 
-      // Check if status has changed (access current order state directly)
-      const currentOrder = order;
-      if (currentOrder && (currentOrder.deliveryStatus !== data.deliveryStatus || currentOrder.isDelivered !== data.isDelivered)) {
-        setStatusUpdateNotification(true);
-        setTimeout(() => setStatusUpdateNotification(false), 5000);
-      }
+      // Check if status changed
+      setOrder(prevOrder => {
+        if (prevOrder && (prevOrder.deliveryStatus !== data.deliveryStatus || prevOrder.isDelivered !== data.isDelivered)) {
+          setStatusUpdateNotification(true);
+          // Clear previous timeout
+          if (notificationTimeoutRef.current) clearTimeout(notificationTimeoutRef.current);
+          // Set new timeout
+          notificationTimeoutRef.current = setTimeout(() => setStatusUpdateNotification(false), 5000);
+        }
+        return data;
+      });
 
-      setPreviousStatus(currentOrder ? `${currentOrder.deliveryStatus}-${currentOrder.isDelivered}` : null);
-      setOrder(data);
       setLastUpdated(new Date());
     } catch (err) {
       console.error('Failed to load order:', err);
@@ -61,24 +73,18 @@ function OrderDetail() {
     }
   }, [id, user, authLoading]);
 
-  const handleRefresh = useCallback(() => {
-    fetchOrder(true);
-  }, [fetchOrder]);
+  // Fetch reviews for delivered orders
+  const fetchUserReviews = useCallback(async (orderData) => {
+    if (!orderData || !orderData.isDelivered) return;
 
-  const reviewsFetchedRef = useRef(new Set());
-
-  const fetchUserReviews = useCallback(async () => {
-    const currentOrder = order;
-    if (!currentOrder || !currentOrder.isDelivered) return;
-
-    for (const item of currentOrder.orderItems) {
+    const items = orderData.orderItems || [];
+    for (const item of items) {
       const productId = item.product?._id;
-      // Only fetch if review is undefined and we haven't tried to fetch it before
       if (productId && typeof reviews[productId] === 'undefined' && !reviewsFetchedRef.current.has(productId)) {
         reviewsFetchedRef.current.add(productId);
         try {
           setReviewLoading(prev => ({ ...prev, [productId]: true }));
-          const data = await reviewsApi.getUserReview(productId, currentOrder._id);
+          const data = await reviewsApi.getUserReview(productId, orderData._id);
           setReviews(prev => ({ ...prev, [productId]: data.review }));
         } catch (err) {
           console.error('Failed to fetch review:', err);
@@ -87,17 +93,18 @@ function OrderDetail() {
         }
       }
     }
-  }, []);
+  }, [reviews]);
 
+  // Submit review handler
   const submitReview = useCallback(async (productId, rating, comment) => {
-    const currentOrder = order;
-    if (!currentOrder || !currentOrder.isDelivered) return;
+    if (!order || !order.isDelivered) return;
+    
     try {
       setReviewLoading(prev => ({ ...prev, [productId]: true }));
       setReviewErrors(prev => ({ ...prev, [productId]: null }));
       const data = await reviewsApi.createOrUpdate({
         productId,
-        orderId: currentOrder._id,
+        orderId: order._id,
         rating,
         comment
       });
@@ -107,21 +114,17 @@ function OrderDetail() {
     } finally {
       setReviewLoading(prev => ({ ...prev, [productId]: false }));
     }
-  }, []);
+  }, [order]);
 
-  // Stable no-op function for missing handlers
-  const noOpHandler = useCallback(() => {}, []);
-
-  // Use ref to store stable handler functions and submitReview
-  const handlersRef = useRef(new Map());
-  const submitReviewRef = useRef(submitReview);
-  
-  // Keep submitReview ref updated
+  // Update submitReviewRef whenever submitReview changes
   useEffect(() => {
     submitReviewRef.current = submitReview;
   }, [submitReview]);
 
-  // Create stable product IDs key for dependency
+  // Stable no-op handler
+  const noOpHandler = useCallback(() => {}, []);
+
+  // Memoized review handlers
   const productIdsKey = useMemo(() => {
     if (!order?.orderItems) return '';
     return order.orderItems
@@ -131,7 +134,6 @@ function OrderDetail() {
       .join(',');
   }, [order?._id]);
 
-  // Create stable handlers map that only updates when product IDs change
   const reviewSubmitHandlers = useMemo(() => {
     if (!order?.orderItems) return handlersRef.current;
     
@@ -141,53 +143,50 @@ function OrderDetail() {
         .filter(Boolean)
     );
     
-    // Remove handlers for products no longer in order
+    // Clean up old handlers
     handlersRef.current.forEach((_, productId) => {
       if (!currentProductIds.has(productId)) {
         handlersRef.current.delete(productId);
       }
     });
     
-    // Create or reuse handlers for current products
+    // Create new handlers
     currentProductIds.forEach(productId => {
       if (!handlersRef.current.has(productId)) {
         handlersRef.current.set(productId, (rating, comment) => {
-          submitReviewRef.current(productId, rating, comment);
+          if (submitReviewRef.current) {
+            submitReviewRef.current(productId, rating, comment);
+          }
         });
       }
     });
     
     return handlersRef.current;
-  }, [productIdsKey]);
+  }, [productIdsKey, order]);
 
+  // CONSOLIDATED EFFECTS - Reduced from 3 to 2
+  
+  // Effect 1: Initial load and auto-refresh setup
   useEffect(() => {
     fetchOrder();
-  }, [id, user, authLoading]);
 
-  useEffect(() => {
-    if (order && order.isDelivered) {
-      fetchUserReviews();
-    }
-  }, [order?._id, order?.isDelivered]);
+    // Set up auto-refresh interval for active orders
+    const setupAutoRefresh = () => {
+      const shouldAutoRefresh = order && order.deliveryStatus !== 'delivered' && order.deliveryStatus !== 'cancelled';
 
-  // Auto-refresh for active orders (not delivered)
-  const autoRefreshRef = useRef(null);
+      if (shouldAutoRefresh && !autoRefreshRef.current) {
+        autoRefreshRef.current = setInterval(() => {
+          if (document.visibilityState === 'visible' && user && !authLoading) {
+            fetchOrder(true);
+          }
+        }, 30000);
+      } else if (!shouldAutoRefresh && autoRefreshRef.current) {
+        clearInterval(autoRefreshRef.current);
+        autoRefreshRef.current = null;
+      }
+    };
 
-  useEffect(() => {
-    const shouldAutoRefresh = order && order.deliveryStatus !== 'delivered' && order.deliveryStatus !== 'cancelled';
-
-    if (shouldAutoRefresh && !autoRefreshRef.current) {
-      // Start auto-refresh
-      autoRefreshRef.current = setInterval(() => {
-        if (document.visibilityState === 'visible' && user && !authLoading) {
-          fetchOrder(true);
-        }
-      }, 30000);
-    } else if (!shouldAutoRefresh && autoRefreshRef.current) {
-      // Stop auto-refresh
-      clearInterval(autoRefreshRef.current);
-      autoRefreshRef.current = null;
-    }
+    setupAutoRefresh();
 
     return () => {
       if (autoRefreshRef.current) {
@@ -195,18 +194,36 @@ function OrderDetail() {
         autoRefreshRef.current = null;
       }
     };
-  }, [order?.deliveryStatus, order?.isDelivered, user, authLoading]);
+  }, [id, user, authLoading, order?.deliveryStatus, order?.isDelivered, fetchOrder]);
+
+  // Effect 2: Fetch reviews when order is delivered
+  useEffect(() => {
+    if (order && order.isDelivered) {
+      fetchUserReviews(order);
+    }
+  }, [order?._id, order?.isDelivered, fetchOrder, fetchUserReviews]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (notificationTimeoutRef.current) clearTimeout(notificationTimeoutRef.current);
+      if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
+    };
+  }, []);
+
+  // Handlers
+  const handleRefresh = useCallback(() => {
+    fetchOrder(true);
+  }, [fetchOrder]);
 
   // Show loading while checking auth
   if (authLoading) {
     return (
-      <div style={{ minHeight: '100vh', background: '#f8f9fa' }}>
+      <div className="order-detail-loading">
         <Navbar />
-        <div style={{ textAlign: 'center', padding: '100px 20px' }}>
-          <div style={{ fontSize: '64px', marginBottom: '20px' }}>⏳</div>
-          <h2 style={{ fontSize: '28px', color: '#333', marginBottom: '15px' }}>
-            Loading...
-          </h2>
+        <div className="order-detail-loading-content">
+          <div className="order-detail-loading-emoji">⏳</div>
+          <h2 className="order-detail-loading-title">Loading...</h2>
         </div>
         <Footer />
       </div>
@@ -215,24 +232,12 @@ function OrderDetail() {
 
   if (!user) {
     return (
-      <div style={{ minHeight: '100vh', background: '#f8f9fa' }}>
+      <div className="order-detail-error">
         <Navbar />
-        <div style={{ textAlign: 'center', padding: '100px 20px' }}>
-          <div style={{ fontSize: '64px', marginBottom: '20px' }}>🔒</div>
-          <h2 style={{ fontSize: '28px', color: '#333', marginBottom: '15px' }}>
-            Please Login to View Order
-          </h2>
-          <Link to="/login" style={{
-            display: 'inline-block',
-            padding: '14px 32px',
-            background: '#4caf50',
-            color: 'white',
-            textDecoration: 'none',
-            borderRadius: '50px',
-            fontWeight: '600',
-            fontSize: '16px',
-            marginTop: '20px'
-          }}>
+        <div className="order-detail-loading-content">
+          <div className="order-detail-loading-emoji">🔒</div>
+          <h2 className="order-detail-loading-title">Please Login to View Order</h2>
+          <Link to="/login" className="order-detail-error-button">
             Login
           </Link>
         </div>
@@ -243,24 +248,12 @@ function OrderDetail() {
 
   if (error || !order) {
     return (
-      <div style={{ minHeight: '100vh', background: '#f8f9fa' }}>
+      <div className="order-detail-error">
         <Navbar />
-        <div style={{ textAlign: 'center', padding: '100px 20px' }}>
-          <div style={{ fontSize: '64px', marginBottom: '20px' }}>❌</div>
-          <h2 style={{ fontSize: '28px', color: '#333', marginBottom: '15px' }}>
-            {error || 'Order not found'}
-          </h2>
-          <Link to="/orders" style={{
-            display: 'inline-block',
-            padding: '14px 32px',
-            background: '#4caf50',
-            color: 'white',
-            textDecoration: 'none',
-            borderRadius: '50px',
-            fontWeight: '600',
-            fontSize: '16px',
-            marginTop: '20px'
-          }}>
+        <div className="order-detail-loading-content">
+          <div className="order-detail-loading-emoji">❌</div>
+          <h2 className="order-detail-loading-title">{error || 'Order not found'}</h2>
+          <Link to="/orders" className="order-detail-error-button">
             Back to Orders
           </Link>
         </div>
@@ -273,244 +266,57 @@ function OrderDetail() {
   const orderStatus = order ? getOrderStatus(order.paymentStatus, order.isDelivered, order.deliveryStatus) : null;
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8f9fa' }}>
-      <style>
-        {`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-
-          @keyframes slideIn {
-            0% { transform: translateX(100%); opacity: 0; }
-            100% { transform: translateX(0); opacity: 1; }
-          }
-
-          @keyframes fadeIn {
-            0% { opacity: 0; transform: translateY(20px); }
-            100% { opacity: 1; transform: translateY(0); }
-          }
-
-          .order-detail-card {
-            background: white;
-            border-radius: 16px;
-            padding: 32px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            margin-bottom: 24px;
-            animation: fadeIn 0.5s ease-out;
-          }
-
-          .status-timeline-item {
-            display: flex;
-            align-items: flex-start;
-            gap: 16px;
-            padding: 16px 0;
-            position: relative;
-          }
-
-          .status-timeline-item:not(:last-child)::after {
-            content: '';
-            position: absolute;
-            left: 12px;
-            top: 40px;
-            bottom: -16px;
-            width: 2px;
-            background: #e0e0e0;
-          }
-
-          .status-icon {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            font-weight: bold;
-            flex-shrink: 0;
-          }
-
-          .status-icon.active {
-            background: #4caf50;
-            color: white;
-          }
-
-          .status-icon.completed {
-            background: #4caf50;
-            color: white;
-          }
-
-          .status-icon.pending {
-            background: #e0e0e0;
-            color: #666;
-          }
-        `}
-      </style>
+    <div className="order-detail-container">
       <Navbar />
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
+      <div className="order-detail-wrapper">
         {/* Back Button */}
-        <button
-          onClick={() => navigate('/orders')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '12px 24px',
-            background: 'white',
-            border: '2px solid #e0e0e0',
-            borderRadius: '50px',
-            cursor: 'pointer',
-            fontWeight: '600',
-            fontSize: '14px',
-            color: '#666',
-            marginBottom: '24px',
-            transition: 'all 0.3s',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.borderColor = '#4caf50';
-            e.target.style.color = '#4caf50';
-            e.target.style.transform = 'translateY(-1px)';
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.borderColor = '#e0e0e0';
-            e.target.style.color = '#666';
-            e.target.style.transform = 'translateY(0)';
-          }}
-        >
+        <button className="order-detail-back-btn" onClick={() => navigate('/orders')}>
           ← Back to Orders
         </button>
 
         {/* Order Header */}
         <div className="order-detail-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '24px', marginBottom: '24px' }}>
-            <div style={{ flex: 1, minWidth: '280px' }}>
-              <div style={{
-                fontSize: '12px',
-                color: '#666',
-                marginBottom: '8px',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                fontWeight: '600'
-              }}>
-                Order Number
-              </div>
-              <h1 style={{
-                fontSize: '28px',
-                fontWeight: '700',
-                color: '#1b5e20',
-                margin: '0 0 8px 0',
-                lineHeight: '1.2'
-              }}>
-                {formatOrderNumber(order._id)}
-              </h1>
-              <div style={{
-                fontSize: '14px',
-                color: '#666',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                marginBottom: '8px'
-              }}>
+          <div className="order-detail-header">
+            <div className="order-detail-header-left">
+              <div className="order-number-label">Order Number</div>
+              <h1 className="order-number">{formatOrderNumber(order._id)}</h1>
+              <div className="order-date">
                 <span>📅</span>
-                <span>Placed on {new Date(order.createdAt).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}</span>
+                <span>
+                  Placed on {new Date(order.createdAt).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </span>
               </div>
-              {lastUpdated && (
-                <div style={{
-                  fontSize: '12px',
-                  color: '#888',
-                  fontWeight: '500'
-                }}>
-                  Last updated: {lastUpdated.toLocaleString()}
-                </div>
-              )}
+              {lastUpdated && <div className="order-last-updated">Last updated: {lastUpdated.toLocaleString()}</div>}
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'flex-end' }}>
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '12px 24px',
-                  background: refreshing ? '#f5f5f5' : '#4caf50',
-                  color: refreshing ? '#999' : 'white',
-                  border: 'none',
-                  borderRadius: '50px',
-                  cursor: refreshing ? 'not-allowed' : 'pointer',
-                  fontWeight: '600',
-                  fontSize: '14px',
-                  transition: 'all 0.3s',
-                  minWidth: '120px',
-                  justifyContent: 'center',
-                  boxShadow: '0 2px 8px rgba(76, 175, 80, 0.2)'
-                }}
-              >
+            <div className="order-detail-header-right">
+              <button className="order-refresh-btn" onClick={handleRefresh} disabled={refreshing}>
                 {refreshing ? (
                   <>
-                    <div style={{
-                      width: '16px',
-                      height: '16px',
-                      border: '2px solid #999',
-                      borderTop: '2px solid transparent',
-                      borderRadius: '50%',
-                      animation: 'spin 1s linear infinite'
-                    }}></div>
+                    <div className="order-refresh-spinner"></div>
                     Refreshing...
                   </>
                 ) : (
-                  <>
-                    🔄 Refresh
-                  </>
+                  <>🔄 Refresh</>
                 )}
               </button>
 
               {statusUpdateNotification && (
-                <div style={{
-                  padding: '10px 16px',
-                  background: '#4caf50',
-                  color: 'white',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  boxShadow: '0 2px 8px rgba(76, 175, 80, 0.3)',
-                  animation: 'slideIn 0.3s ease-out'
-                }}>
+                <div className="order-status-notification">
                   <span>✨</span>
                   Order status has been updated!
                 </div>
               )}
 
-              <div style={{ textAlign: 'right', marginTop: '16px' }}>
-                <div style={{
-                  fontSize: '12px',
-                  color: '#666',
-                  marginBottom: '4px',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
-                  fontWeight: '600'
-                }}>
-                  Order Total
-                </div>
-                <div style={{
-                  fontSize: '32px',
-                  fontWeight: '700',
-                  color: '#4caf50',
-                  lineHeight: '1.2'
-                }}>
-                  ₹{order.totalPrice?.toFixed(2) || '0.00'}
-                </div>
+              <div className="order-total-section">
+                <div className="order-total-label">Order Total</div>
+                <div className="order-total-amount">₹{order.totalPrice?.toFixed(2) || '0.00'}</div>
               </div>
             </div>
           </div>
@@ -529,20 +335,8 @@ function OrderDetail() {
               <span>📊</span>
               Current Status
             </div>
-            <div style={{
-              padding: '20px 24px',
-              borderRadius: '12px',
-              background: orderStatus?.bgColor || '#f5f5f5',
-              color: orderStatus?.color || '#666',
-              fontWeight: '700',
-              fontSize: '18px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '12px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-              border: '2px solid rgba(255,255,255,0.3)'
-            }}>
-              <span style={{ fontSize: '24px' }}>
+            <div className="order-status-badge" style={{ background: orderStatus?.bgColor || '#f5f5f5', color: orderStatus?.color || '#666' }}>
+              <span className="order-status-icon">
                 {order?.isDelivered ? '✅' :
                  order?.deliveryStatus === 'processing' ? '🔄' :
                  order?.deliveryStatus === 'shipped' ? '📦' :
@@ -570,48 +364,14 @@ function OrderDetail() {
 
           {/* Tracking Information */}
           {order?.trackingId && ['shipped', 'out_for_delivery', 'delivered'].includes(order.deliveryStatus) && (
-            <div style={{
-              padding: '20px',
-              background: 'linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%)',
-              borderRadius: '12px',
-              border: '1px solid #e1f5fe',
-              marginBottom: '24px'
-            }}>
-              <h3 style={{
-                fontSize: '18px',
-                fontWeight: '600',
-                color: '#1976d2',
-                margin: '0 0 12px 0',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                📦 Tracking Information
-              </h3>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '16px',
-                flexWrap: 'wrap'
-              }}>
+            <div className="order-tracking-section">
+              <h3 className="order-tracking-title">📦 Tracking Information</h3>
+              <div className="order-tracking-content">
                 <div>
                   <div style={{ fontSize: '14px', color: '#666', marginBottom: '4px' }}>Tracking ID</div>
-                  <div style={{
-                    fontFamily: 'Courier New, monospace',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    color: '#1976d2',
-                    background: 'white',
-                    padding: '10px 14px',
-                    borderRadius: '8px',
-                    display: 'inline-block',
-                    border: '2px solid #e3f2fd',
-                    boxShadow: '0 2px 4px rgba(25, 118, 210, 0.1)'
-                  }}>
-                    {order.trackingId}
-                  </div>
+                  <div className="order-tracking-id">{order.trackingId}</div>
                 </div>
-                <div style={{ fontSize: '14px', color: '#555', maxWidth: '300px' }}>
+                <div className="order-tracking-description">
                   You can track your order using this ID with our delivery partner. Keep this ID safe for reference.
                 </div>
               </div>
@@ -634,20 +394,16 @@ function OrderDetail() {
             Order Timeline
           </h2>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+          <div className="order-timeline">
             {/* Order Placed */}
             <div className="status-timeline-item">
               <div className={`status-icon ${order ? 'completed' : 'pending'}`}>
                 ✓
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: '600', color: '#333', marginBottom: '4px' }}>
-                  Order Placed
-                </div>
-                <div style={{ fontSize: '14px', color: '#666' }}>
-                  Your order has been successfully placed
-                </div>
-                <div style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>
+              <div>
+                <div className="status-timeline-title">Order Placed</div>
+                <div className="status-timeline-description">Your order has been successfully placed</div>
+                <div className="status-timeline-date">
                   {order?.createdAt ? new Date(order.createdAt).toLocaleString('en-US', {
                     month: 'short',
                     day: 'numeric',
@@ -662,17 +418,11 @@ function OrderDetail() {
             {/* Payment Confirmed */}
             {order?.isPaid && (
               <div className="status-timeline-item">
-                <div className={`status-icon completed`}>
-                  💳
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: '600', color: '#333', marginBottom: '4px' }}>
-                    Payment Confirmed
-                  </div>
-                  <div style={{ fontSize: '14px', color: '#666' }}>
-                    Payment has been successfully processed
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>
+                <div className="status-icon completed">💳</div>
+                <div>
+                  <div className="status-timeline-title">Payment Confirmed</div>
+                  <div className="status-timeline-description">Payment has been successfully processed</div>
+                  <div className="status-timeline-date">
                     {order.paidAt ? new Date(order.paidAt).toLocaleString('en-US', {
                       month: 'short',
                       day: 'numeric',
@@ -691,16 +441,10 @@ function OrderDetail() {
                 <div className={`status-icon ${['processing', 'shipped', 'out_for_delivery', 'delivered'].includes(order.deliveryStatus) ? 'completed' : 'active'}`}>
                   🔄
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: '600', color: '#333', marginBottom: '4px' }}>
-                    Order Processing
-                  </div>
-                  <div style={{ fontSize: '14px', color: '#666' }}>
-                    Your order is being prepared for shipment
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>
-                    In progress
-                  </div>
+                <div>
+                  <div className="status-timeline-title">Order Processing</div>
+                  <div className="status-timeline-description">Your order is being prepared for shipment</div>
+                  <div className="status-timeline-date">In progress</div>
                 </div>
               </div>
             )}
@@ -711,11 +455,9 @@ function OrderDetail() {
                 <div className={`status-icon ${['shipped', 'out_for_delivery', 'delivered'].includes(order.deliveryStatus) ? 'completed' : 'pending'}`}>
                   📦
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: '600', color: '#333', marginBottom: '4px' }}>
-                    Order Shipped
-                  </div>
-                  <div style={{ fontSize: '14px', color: '#666' }}>
+                <div>
+                  <div className="status-timeline-title">Order Shipped</div>
+                  <div className="status-timeline-description">
                     Your order has been shipped and is on its way
                     {order?.trackingId && (
                       <span style={{ display: 'block', marginTop: '8px', fontSize: '13px', color: '#1976d2' }}>
@@ -723,9 +465,7 @@ function OrderDetail() {
                       </span>
                     )}
                   </div>
-                  <div style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>
-                    Shipped
-                  </div>
+                  <div className="status-timeline-date">Shipped</div>
                 </div>
               </div>
             )}
@@ -736,16 +476,10 @@ function OrderDetail() {
                 <div className={`status-icon ${order?.deliveryStatus === 'delivered' ? 'completed' : 'active'}`}>
                   🚚
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: '600', color: '#333', marginBottom: '4px' }}>
-                    Out for Delivery
-                  </div>
-                  <div style={{ fontSize: '14px', color: '#666' }}>
-                    Your order is out for delivery and will arrive soon
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>
-                    Out for delivery
-                  </div>
+                <div>
+                  <div className="status-timeline-title">Out for Delivery</div>
+                  <div className="status-timeline-description">Your order is out for delivery and will arrive soon</div>
+                  <div className="status-timeline-date">Out for delivery</div>
                 </div>
               </div>
             )}
@@ -753,17 +487,11 @@ function OrderDetail() {
             {/* Delivered */}
             {order?.deliveryStatus === 'delivered' && (
               <div className="status-timeline-item">
-                <div className={`status-icon completed`}>
-                  ✅
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: '600', color: '#333', marginBottom: '4px' }}>
-                    Order Delivered
-                  </div>
-                  <div style={{ fontSize: '14px', color: '#666' }}>
-                    Your order has been successfully delivered
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>
+                <div className="status-icon completed">✅</div>
+                <div>
+                  <div className="status-timeline-title">Order Delivered</div>
+                  <div className="status-timeline-description">Your order has been successfully delivered</div>
+                  <div className="status-timeline-date">
                     {order?.deliveredAt ? new Date(order.deliveredAt).toLocaleString('en-US', {
                       month: 'short',
                       day: 'numeric',
@@ -779,7 +507,7 @@ function OrderDetail() {
         </div>
 
         {/* Order Items and Summary */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '24px', alignItems: 'start' }}>
+        <div className="order-items-container">
           {/* Order Items */}
           <div className="order-detail-card">
             <h2 style={{
@@ -795,59 +523,32 @@ function OrderDetail() {
               Order Items ({order?.orderItems?.length || 0})
             </h2>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="order-items-list">
               {order?.orderItems?.map((item, idx) => (
                 <div
                   key={idx}
-                  style={{
-                    display: 'flex',
-                    gap: '16px',
-                    padding: '16px',
-                    background: '#f8f9fa',
-                    borderRadius: '12px',
-                    border: '1px solid #e9ecef',
-                    transition: 'all 0.3s',
-                    cursor: item.product ? 'pointer' : 'default'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (item.product) {
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (item.product) {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }
-                  }}
+                  className="order-item"
                   onClick={() => item.product && navigate(`/products/${item.product._id}`)}
                 >
                   {item.product?.image && (
                     <img
                       src={item.product.image}
                       alt={item.product.name}
-                      style={{
-                        width: '80px',
-                        height: '80px',
-                        objectFit: 'cover',
-                        borderRadius: '8px',
-                        flexShrink: 0
-                      }}
+                      className="order-item-image"
                     />
                   )}
 
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div style={{ fontWeight: '600', color: '#333', fontSize: '16px' }}>
+                  <div className="order-item-details">
+                    <div className="order-item-name">
                       {item.product?.name || 'Product Unavailable'}
                     </div>
 
-                    <div style={{ display: 'flex', gap: '16px', fontSize: '14px', color: '#666' }}>
+                    <div className="order-item-meta">
                       <span>Qty: {item.qty}</span>
                       <span>₹{item.price?.toFixed(2) || '0.00'}</span>
                     </div>
 
-                    <div style={{ fontSize: '16px', fontWeight: '700', color: '#4caf50' }}>
+                    <div className="order-item-subtotal">
                       ₹{(item.qty * (item.price || 0)).toFixed(2)}
                     </div>
                   </div>
@@ -855,7 +556,7 @@ function OrderDetail() {
                   {/* Review Section for Delivered Orders */}
                   {order?.isDelivered && item.product && (
                     <div 
-                      style={{ display: 'flex', alignItems: 'center', gap: '12px' }}
+                      className="order-item-reviews"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <ReviewForm
@@ -875,58 +576,46 @@ function OrderDetail() {
           </div>
 
           {/* Order Summary */}
-          <div>
-            <div className="order-detail-card">
-              <h3 style={{
-                fontSize: '20px',
-                fontWeight: '700',
-                color: '#333',
-                margin: '0 0 20px 0',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
+          <div className="order-summary-container">
+            <div className="order-detail-card order-summary-card">
+              <h3 className="order-summary-title">
                 <span>📄</span>
                 Order Summary
               </h3>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ color: '#666' }}>Subtotal:</span>
-                  <span style={{ fontWeight: '600', color: '#333' }}>
+              <div className="order-summary-card">
+                <div className="order-summary-row">
+                  <span className="order-summary-label">Subtotal:</span>
+                  <span className="order-summary-value">
                     ₹{order?.subtotal?.toFixed(2) || order?.totalPrice?.toFixed(2) || '0.00'}
                   </span>
                 </div>
 
                 {order?.deliveryCharge > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: '#666' }}>Delivery Charge:</span>
-                    <span style={{ fontWeight: '600', color: '#333' }}>
+                  <div className="order-summary-row">
+                    <span className="order-summary-label">Delivery Charge:</span>
+                    <span className="order-summary-value">
                       ₹{order.deliveryCharge.toFixed(2)}
                     </span>
                   </div>
                 )}
 
                 {order?.discount > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: '#666' }}>
+                  <div className="order-summary-row">
+                    <span className="order-summary-label">
                       Discount {order.promoCode && `(${order.promoCode})`}:
                     </span>
-                    <span style={{ fontWeight: '600', color: '#4caf50' }}>
+                    <span className="order-summary-value order-summary-discount">
                       -₹{order.discount.toFixed(2)}
                     </span>
                   </div>
                 )}
 
-                <div style={{
-                  height: '1px',
-                  background: '#e0e0e0',
-                  margin: '8px 0'
-                }}></div>
+                <div className="order-summary-divider"></div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '18px', fontWeight: '700', color: '#333' }}>Total:</span>
-                  <span style={{ fontSize: '20px', fontWeight: '700', color: '#4caf50' }}>
+                <div className="order-summary-row">
+                  <span className="order-summary-total-label">Total:</span>
+                  <span className="order-summary-total-value">
                     ₹{order?.totalPrice?.toFixed(2) || '0.00'}
                   </span>
                 </div>
@@ -936,66 +625,37 @@ function OrderDetail() {
             {/* Payment Information */}
             {(order?.transactionId || order?.paymentMethod) && (
               <div className="order-detail-card">
-                <h3 style={{
-                  fontSize: '20px',
-                  fontWeight: '700',
-                  color: '#333',
-                  margin: '0 0 20px 0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
+                <h3 className="order-summary-title">
                   <span>💳</span>
                   Payment Information
                 </h3>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {order.transactionId && (
+                <div className="payment-info-container">
+                    {order.transactionId && (
                     <div>
                       <div style={{ fontSize: '14px', color: '#666', marginBottom: '4px' }}>Transaction ID</div>
-                      <div style={{
-                        fontFamily: 'Courier New, monospace',
-                        fontSize: '14px',
-                        fontWeight: '600',
-                        color: '#333',
-                        background: '#f8f9fa',
-                        padding: '8px 12px',
-                        borderRadius: '6px'
-                      }}>
-                        {order.transactionId}
-                      </div>
+                      <div className="payment-transaction-id">{order.transactionId}</div>
                     </div>
                   )}
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: '#666' }}>Payment Method:</span>
-                    <span style={{ fontWeight: '600', color: '#333' }}>
+                  <div className="order-summary-row">
+                    <span className="order-summary-label">Payment Method:</span>
+                    <span className="order-summary-value">
                       {order.paymentMethod || 'Online Payment'}
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: '#666' }}>Payment Status:</span>
-                    <span style={{
-                      fontWeight: '600',
-                      color: order?.paymentStatus === 'success' ? '#4caf50' :
-                             order?.paymentStatus === 'failed' ? '#f44336' :
-                             order?.paymentStatus === 'pending' ? '#ff9800' : '#666',
-                      padding: '4px 12px',
-                      borderRadius: '20px',
-                      fontSize: '12px',
-                      background: order?.paymentStatus === 'success' ? '#e8f5e9' :
-                                 order?.paymentStatus === 'failed' ? '#ffebee' :
-                                 order?.paymentStatus === 'pending' ? '#fff3e0' : '#f5f5f5'
-                    }}>
+                  <div className="order-summary-row">
+                    <span className="order-summary-label">Payment Status:</span>
+                    <span className={`payment-status ${order?.paymentStatus}`}>
                       {order?.paymentStatus?.charAt(0).toUpperCase() + order?.paymentStatus?.slice(1) || 'Pending'}
                     </span>
                   </div>
 
                   {order?.paidAt && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ color: '#666' }}>Paid At:</span>
-                      <span style={{ fontWeight: '600', color: '#333', fontSize: '14px' }}>
+                    <div className="order-summary-row">
+                      <span className="order-summary-label">Paid At:</span>
+                      <span className="order-summary-value" style={{ fontSize: '14px' }}>
                         {new Date(order.paidAt).toLocaleString('en-US', {
                           month: 'short',
                           day: 'numeric',
@@ -1012,31 +672,13 @@ function OrderDetail() {
             {/* Shipping Address */}
             {order?.shippingAddress && (
               <div className="order-detail-card">
-                <h3 style={{
-                  fontSize: '20px',
-                  fontWeight: '700',
-                  color: '#333',
-                  margin: '0 0 20px 0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
+                <h3 className="order-summary-title">
                   <span>📍</span>
                   Shipping Address
                 </h3>
 
-                <div style={{
-                  padding: '16px',
-                  background: '#f8f9fa',
-                  borderRadius: '8px',
-                  border: '1px solid #e9ecef'
-                }}>
-                  <div style={{
-                    fontSize: '16px',
-                    color: '#333',
-                    lineHeight: '1.6',
-                    fontWeight: '500'
-                  }}>
+                <div className="shipping-address-box">
+                  <div className="shipping-address-text">
                     {order.shippingAddress.address}
                     <br />
                     {order.shippingAddress.city}, {order.shippingAddress.postalCode}
@@ -1050,38 +692,30 @@ function OrderDetail() {
             {/* Customer Information */}
             {order?.user && (
               <div className="order-detail-card">
-                <h3 style={{
-                  fontSize: '20px',
-                  fontWeight: '700',
-                  color: '#333',
-                  margin: '0 0 20px 0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
+                <h3 className="order-summary-title">
                   <span>👤</span>
                   Customer Information
                 </h3>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: '#666' }}>Name:</span>
-                    <span style={{ fontWeight: '600', color: '#333' }}>
+                <div className="customer-info-container">
+                  <div className="customer-info-row">
+                    <span className="customer-info-label">Name:</span>
+                    <span className="customer-info-value">
                       {order.user.name || 'N/A'}
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: '#666' }}>Email:</span>
-                    <span style={{ fontWeight: '600', color: '#333' }}>
+                  <div className="customer-info-row">
+                    <span className="customer-info-label">Email:</span>
+                    <span className="customer-info-value">
                       {order.user.email || 'N/A'}
                     </span>
                   </div>
 
                   {order.user.phone && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ color: '#666' }}>Phone:</span>
-                      <span style={{ fontWeight: '600', color: '#333' }}>
+                    <div className="customer-info-row">
+                      <span className="customer-info-label">Phone:</span>
+                      <span className="customer-info-value">
                         {order.user.phone}
                       </span>
                     </div>

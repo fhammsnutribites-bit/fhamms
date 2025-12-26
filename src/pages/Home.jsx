@@ -183,29 +183,30 @@ function Home() {
     ];
   }, [safeCategories]);
 
-  // Auto-rotate hero images
+  // Combined: Auto-rotate hero images and notification messages
   useEffect(() => {
-    if (heroProducts.length <= 1) return;
+    const intervals = [];
 
-    const interval = setInterval(() => {
-      setCurrentImageIndex((prevIndex) =>
-        (prevIndex + 1) % heroProducts.length
-      );
-    }, 4000); // Change image every 4 seconds
+    // Auto-rotate hero images (if we have multiple)
+    if (heroProducts.length > 1) {
+      const imageInterval = setInterval(() => {
+        setCurrentImageIndex((prevIndex) =>
+          (prevIndex + 1) % heroProducts.length
+        );
+      }, 4000); // Change image every 4 seconds
+      intervals.push(imageInterval);
+    }
 
-    return () => clearInterval(interval);
-  }, [heroProducts.length]);
-
-  // Auto-rotate notification messages
-  useEffect(() => {
+    // Auto-rotate notification messages
     const messageInterval = setInterval(() => {
       setCurrentMessageIndex((prevIndex) =>
         (prevIndex + 1) % notificationMessages.length
       );
     }, 6000); // Change message every 6 seconds
+    intervals.push(messageInterval);
 
-    return () => clearInterval(messageInterval);
-  }, [notificationMessages.length]);
+    return () => intervals.forEach(interval => clearInterval(interval));
+  }, [heroProducts.length, notificationMessages.length]);
 
   const handleAddToCart = useCallback((product, event) => {
     event.preventDefault();

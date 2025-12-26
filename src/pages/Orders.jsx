@@ -32,6 +32,7 @@ function Orders() {
     }
   }, [user, authLoading]);
 
+  // Load orders when user data is available
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);

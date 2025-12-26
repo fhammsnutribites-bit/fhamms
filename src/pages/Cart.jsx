@@ -19,8 +19,8 @@ function Cart() {
     total,
     error,
     loading,
-    updatingQuantity,
-    removingFromCart,
+    isItemLoading,
+    isItemRemoving,
     clearingCart,
     isAnyLoading
   } = useCart();
@@ -100,9 +100,9 @@ function Cart() {
                             updateQuantity(item.cartItemId, Math.max(1, item.qty - 1));
                           }}
                           className="cart__item-quantity-button"
-                          disabled={updatingQuantity}
+                          disabled={isItemLoading(item.cartItemId)}
                         >
-                          {updatingQuantity ? <Loader size="small" text="" /> : '−'}
+                          {isItemLoading(item.cartItemId) ? <Loader size="small" text="" /> : '−'}
                         </button>
                         <span className="cart__item-quantity-value">{item.qty}</span>
                         <button
@@ -110,9 +110,9 @@ function Cart() {
                             updateQuantity(item.cartItemId, item.qty + 1);
                           }}
                           className="cart__item-quantity-button"
-                          disabled={updatingQuantity}
+                          disabled={isItemLoading(item.cartItemId)}
                         >
-                          {updatingQuantity ? <Loader size="small" text="" /> : '+'}
+                          {isItemLoading(item.cartItemId) ? <Loader size="small" text="" /> : '+'}
                         </button>
                       </div>
                       <button
@@ -120,9 +120,9 @@ function Cart() {
                           removeFromCart(item.cartItemId);
                         }}
                         className="cart__item-remove"
-                        disabled={removingFromCart}
+                        disabled={isItemRemoving(item.cartItemId)}
                       >
-                        {removingFromCart ? <Loader size="small" text="" /> : 'Remove'}
+                        {isItemRemoving(item.cartItemId) ? <Loader size="small" text="" /> : 'Remove'}
                       </button>
                     </div>
                   </div>

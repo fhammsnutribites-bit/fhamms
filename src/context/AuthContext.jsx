@@ -1,12 +1,15 @@
-import React, { createContext, useContext, useEffect, useReducer } from 'react';
+import React, { createContext, useContext, useEffect, useReducer, useCallback } from 'react';
 import { authApi } from '../services/authApi.js';
 import { usersApi } from '../services/usersApi.js';
 
 const AuthContext = createContext();
 const initialState = {
   user: null,
-  loading: true, // Start with loading true to check localStorage
+  loading: true, // Auth loading (checking localStorage)
   error: null,
+  // Global API loader state - used by OrderDetail and other pages
+  apiLoading: false,
+  apiLoadingKey: null, // Track which API call is in progress
 };
 
 function reducer(state, action) {
@@ -21,6 +24,11 @@ function reducer(state, action) {
       return { ...state, loading: false, error: action.payload };
     case 'LOGOUT':
       return { user: null, loading: false, error: null };
+    // Global API loader actions
+    case 'API_LOADING_START':
+      return { ...state, apiLoading: true, apiLoadingKey: action.payload };
+    case 'API_LOADING_END':
+      return { ...state, apiLoading: false, apiLoadingKey: null };
     default:
       return state;
   }
@@ -128,8 +136,26 @@ export const AuthProvider = ({ children }) => {
     dispatch({ type: 'LOGOUT' });
   };
 
+  // Global API loading helper - use this in OrderDetail and other pages
+  const setApiLoading = useCallback((key) => {
+    dispatch({ type: 'API_LOADING_START', payload: key });
+  }, []);
+
+  const clearApiLoading = useCallback(() => {
+    dispatch({ type: 'API_LOADING_END' });
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ ...state, login, register, verifyRegistration, resendOtp, logout }}>
+    <AuthContext.Provider value={{
+      ...state,
+      login,
+      register,
+      verifyRegistration,
+      resendOtp,
+      logout,
+      setApiLoading,
+      clearApiLoading
+    }}>
       {children}
     </AuthContext.Provider>
   );

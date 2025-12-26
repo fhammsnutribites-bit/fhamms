@@ -14,6 +14,8 @@ const initialState = {
   clearingCart: false,
   error: null,
   sessionId: null,
+  itemLoadingMap: {}, // Track loading state per item ID: { itemId: true/false }
+  itemRemovingMap: {}, // Track removing state per item ID: { itemId: true/false }
 };
 
 // Generate or retrieve session ID for guest carts
@@ -35,7 +37,9 @@ function reducer(state, action) {
         ...state,
         cartItems: action.payload.items || [],
         loading: false,
-        error: null
+        error: null,
+        itemLoadingMap: {},
+        itemRemovingMap: {}
       };
     case 'LOAD_CART_ERROR':
       return { ...state, loading: false, error: action.payload };
@@ -49,21 +53,40 @@ function reducer(state, action) {
         error: null
       };
     case 'START_UPDATE_QUANTITY':
-      return { ...state, updatingQuantity: true, error: null };
+      return {
+        ...state,
+        itemLoadingMap: {
+          ...state.itemLoadingMap,
+          [action.payload]: true
+        },
+        error: null
+      };
     case 'UPDATE_SUCCESS':
       return {
         ...state,
         cartItems: action.payload.items || [],
-        updatingQuantity: false,
+        itemLoadingMap: {
+          ...state.itemLoadingMap,
+          [action.payload.itemId]: false
+        },
         error: null
       };
     case 'START_REMOVE_FROM_CART':
-      return { ...state, removingFromCart: true, error: null };
+      return {
+        ...state,
+        itemRemovingMap: {
+          ...state.itemRemovingMap,
+          [action.payload]: true
+        },
+        error: null
+      };
     case 'REMOVE_SUCCESS':
+      const newRemovingMap = { ...state.itemRemovingMap };
+      delete newRemovingMap[action.payload.itemId];
       return {
         ...state,
         cartItems: action.payload.items || [],
-        removingFromCart: false,
+        itemRemovingMap: newRemovingMap,
         error: null
       };
     case 'START_CLEAR_CART':
@@ -73,15 +96,17 @@ function reducer(state, action) {
         ...state,
         cartItems: [],
         clearingCart: false,
-        error: null
+        error: null,
+        itemLoadingMap: {},
+        itemRemovingMap: {}
       };
     case 'SET_ERROR':
       return {
         ...state,
         loading: false,
         addingToCart: false,
-        updatingQuantity: false,
-        removingFromCart: false,
+        itemLoadingMap: {},
+        itemRemovingMap: {},
         clearingCart: false,
         error: action.payload
       };
@@ -233,11 +258,11 @@ export const CartProvider = ({ children }) => {
   };
 
   const removeFromCart = async (itemId) => {
-    dispatch({ type: 'START_REMOVE_FROM_CART' });
+    dispatch({ type: 'START_REMOVE_FROM_CART', payload: itemId });
     try {
       const data = await cartApi.removeItem(itemId);
       const transformedItems = transformCartItems(data.items);
-      dispatch({ type: 'REMOVE_SUCCESS', payload: { items: transformedItems } });
+      dispatch({ type: 'REMOVE_SUCCESS', payload: { items: transformedItems, itemId } });
     } catch (err) {
       console.error('Remove from cart error:', err);
       dispatch({ type: 'SET_ERROR', payload: err.response?.data?.message || 'Failed to remove item from cart' });
@@ -245,11 +270,11 @@ export const CartProvider = ({ children }) => {
   };
 
   const updateQuantity = async (itemId, qty) => {
-    dispatch({ type: 'START_UPDATE_QUANTITY' });
+    dispatch({ type: 'START_UPDATE_QUANTITY', payload: itemId });
     try {
       const data = await cartApi.updateItem(itemId, Number(qty));
       const transformedItems = transformCartItems(data.items);
-      dispatch({ type: 'UPDATE_SUCCESS', payload: { items: transformedItems } });
+      dispatch({ type: 'UPDATE_SUCCESS', payload: { items: transformedItems, itemId } });
     } catch (err) {
       console.error('Update quantity error:', err);
       dispatch({ type: 'SET_ERROR', payload: err.response?.data?.message || 'Failed to update quantity' });
@@ -320,7 +345,10 @@ export const CartProvider = ({ children }) => {
       deliveryCharge,
       loadingDeliveryCharge,
       total,
-      isAnyLoading: state.loading || state.addingToCart || state.updatingQuantity || state.removingFromCart || state.clearingCart
+      isAnyLoading: state.loading || state.addingToCart || state.clearingCart,
+      // Helper functions for per-item loading
+      isItemLoading: (itemId) => state.itemLoadingMap[itemId] || false,
+      isItemRemoving: (itemId) => state.itemRemovingMap[itemId] || false,
     }}>
       {children}
     </CartContext.Provider>

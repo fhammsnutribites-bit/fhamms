@@ -69,15 +69,14 @@ function ProductDetail() {
     }
   }, [id]);
 
+  // CONSOLIDATED: Load product and reviews on mount and when dependencies change
   useEffect(() => {
     fetchProduct();
-  }, [fetchProduct]);
-
-  useEffect(() => {
+    // Fetch reviews after product is loaded
     if (product) {
       fetchReviews();
     }
-  }, [product, fetchReviews]);
+  }, [fetchProduct, product, fetchReviews]);
 
   const handleWeightChange = useCallback((weightOption) => {
     setSelectedWeight(weightOption);
